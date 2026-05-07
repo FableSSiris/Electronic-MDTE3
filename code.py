@@ -24,9 +24,12 @@ button1 = digitalio.DigitalInOut(board.GP14)
 button1.direction = digitalio.Direction.INPUT
 button1.pull = digitalio.Pull.UP
 
-button_back = digitalio.DigitalInOut(board.GP18)
+button_back = digitalio.DigitalInOut(board.GP13)
 button_back.direction = digitalio.Direction.INPUT
 button_back.pull = digitalio.Pull.UP
+
+last_click_state = True
+last_back_state = True
 
 #display setup-----------------------------------------
 displayio.release_displays()
@@ -43,52 +46,40 @@ display = SH1106(
 #display setup-----------------------------------------
 
 #imageload--------------------------------------------- (dumbest way to do this but it works (adding seperate lines for each image), will improve on this later)
-img = "apple2.bmp"
+imgms2 = "main_menu-s2.bmp"
 bitmap, palette = adafruit_imageload.load(
-    img,
+    imgms2,
     bitmap=displayio.Bitmap,
     palette=displayio.Palette
 )
-tile_grid = displayio.TileGrid(
+tile_main_s2 = displayio.TileGrid(
     bitmap, 
     pixel_shader=palette, 
     x = (display.width - bitmap.width) // 2, 
     y=(display.height - bitmap.height) // 2
 )
 
-img2 = "netflix.bmp"
+imgs3 = "main_menu-s3.bmp"
 bitmap, palette = adafruit_imageload.load(
-    img2,
+    imgs3,
     bitmap=displayio.Bitmap,
     palette=displayio.Palette
 )
-tile_grid2 = displayio.TileGrid(
+tile_main_s3 = displayio.TileGrid(
     bitmap, 
     pixel_shader=palette, 
     x = (display.width - bitmap.width) // 2, 
     y=(display.height - bitmap.height) // 2
 )
 
-img4 = "among.bmp"
+imgs1 = "main_menu-s1.bmp"
 bitmap, palette = adafruit_imageload.load(
-    img4,
+    imgs1,
     bitmap=displayio.Bitmap,
     palette=displayio.Palette
-)
-tile_among = displayio.TileGrid(
-    bitmap, 
-    pixel_shader=palette, 
-    x = (display.width - bitmap.width) // 2, 
-    y=(display.height - bitmap.height) // 2
 )
 
-img3 = "srbrrrrr.bmp"
-bitmap, palette = adafruit_imageload.load(
-    img3,
-    bitmap=displayio.Bitmap,
-    palette=displayio.Palette
-)
-tile_grid3 = displayio.TileGrid(
+tile_main_s1 = displayio.TileGrid(
     bitmap, 
     pixel_shader=palette, 
     x = (display.width - bitmap.width) // 2, 
@@ -97,60 +88,76 @@ tile_grid3 = displayio.TileGrid(
 #imageload---------------------------------------------
 
 #text label--------------------------------------------
-text_area = label.Label(
-    terminalio.FONT,
-    text="1 week remaining",
-    scale = 1,
-    x=20,
-    y=display.height//2
-)
-#text label--------------------------------------------
+weeks = 0
 
-counter = 0
+#text label--------------------------------------------
 
 #display constant--------------------------------------
 main_group = displayio.Group()
 display.root_group = main_group
 #display constant--------------------------------------
 
-main_menu = [tile_grid, tile_grid3, tile_among]
+main_menu = [tile_main_s1, tile_main_s2, tile_main_s3]
 
 main_group.append(main_menu[0])
 
-held = False
-
+layer = 0
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 while True:
+    
+    current_click = button1.value
+    current_back = button_back.value
+
+    if layer == 0:
+        current_position = encoder.position
+
+
+    selectron = (current_position % 3) + 1
+    
+
+    text_area = label.Label(
+        terminalio.FONT,
+        text= f"{selectron} weeks remaining",
+        scale = 1,
+        x=20,
+        y=display.height//2
+    )
+#control variables-_---------------------------------------------
 
 #rotary switch---------------------------------------------
-    current_position = encoder.position
-    
+
     if current_position != last_position:
+            main_group.pop()
+            main_group.append(main_menu[current_position % 3])
+            last_position = current_position
+            time.sleep(0.05)
+#rotary switch---------------------------------------------
+    
+    
+    
+#push button----------------------------------------------
+
+    if not current_click and last_click_state: #press
+        main_group.pop()
+        main_group.append(text_area)
+        time.sleep(0.05)
+        layer = 1
+
+    if not current_back and last_back_state and layer == 1: #back
         main_group.pop()
         main_group.append(main_menu[current_position % 3])
-        last_position = current_position
-#rotary switch---------------------------------------------
+        last_position = -1 #resets the position so that the display updates when the rotary switch is turned again after pressing the back button
+        time.sleep(0.05)
+        layer = 0
+    
+    last_click_state = current_click
+    last_back_state = current_back
+
+
 
 #push button----------------------------------------------
-    if button1.value == False: #press
-        if held == False:
-            main_group.pop()
-            main_group.append(tile_grid2)
-            held = True
-    else: #release
-        if held == True:
-            main_group.pop()
-            main_group.append(text_area)
-            time.sleep(0.1)
-            main_group.pop()
-            main_group.append(main_menu[current_position % 3])
-            held = False
-            last_position = current_position
-        elif current_position != last_position:
-            main_group.pop()
-            main_group.append(main_menu[current_position % 3])
-            last_position = current_position
-#push button----------------------------------------------
 
 
-    time.sleep(0.001)
+    
 
