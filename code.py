@@ -13,6 +13,10 @@ from adafruit_display_text import label
 from adafruit_displayio_sh1106 import SH1106
 
 
+led = digitalio.DigitalInOut(board.GP10)
+led.direction = digitalio.Direction.OUTPUT
+
+led.value = False
 
 encoder = rotaryio.IncrementalEncoder(board.GP17, board.GP16, divisor=4)
 
@@ -105,7 +109,6 @@ layer = 0
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 while True:
-    
     current_click = button1.value
     current_back = button_back.value
 
@@ -141,14 +144,18 @@ while True:
     if not current_click and last_click_state: #press
         main_group.pop()
         main_group.append(text_area)
+        led.value = True
         time.sleep(0.05)
+        led.value = False
         layer = 1
 
     if not current_back and last_back_state and layer == 1: #back
         main_group.pop()
         main_group.append(main_menu[current_position % 3])
         last_position = -1 #resets the position so that the display updates when the rotary switch is turned again after pressing the back button
+        led.value = True
         time.sleep(0.05)
+        led.value = False
         layer = 0
     
     last_click_state = current_click
