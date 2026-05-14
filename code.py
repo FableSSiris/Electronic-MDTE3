@@ -6,12 +6,19 @@ import digitalio
 import time 
 import displayio
 import terminalio
+import neopixel     
 import i2cdisplaybus
 from adafruit_displayio_ssd1306 import SSD1306
 import adafruit_imageload
 from adafruit_display_text import label
 from adafruit_displayio_sh1106 import SH1106
 
+# Initialize the pixel strip
+pixels = neopixel.NeoPixel(board.GP18, 8, brightness=0.1, auto_write=False)
+
+pixels.fill((255, 255,255))
+# Update the strip to show changes
+pixels.show()
 
 led = digitalio.DigitalInOut(board.GP10)
 led.direction = digitalio.Direction.OUTPUT
