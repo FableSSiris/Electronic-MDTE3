@@ -14,11 +14,28 @@ from adafruit_display_text import label
 from adafruit_displayio_sh1106 import SH1106
 
 # Initialize the pixel strip
-pixels = neopixel.NeoPixel(board.GP18, 8, brightness=0.1, auto_write=False)
+pixels = neopixel.NeoPixel(board.GP18, 8, brightness=0, auto_write=False)
 
-pixels.fill((255, 255,255))
-# Update the strip to show changes
-pixels.show()
+red = (255, 0, 0)
+orange = (255, 64, 0)
+green = (0, 255, 0)
+blue = (0, 0, 255)
+yellow = (255, 255, 0)
+cyan = (0, 255, 255)
+purple = (128, 0, 255)
+magenta = (255, 0, 255)
+
+gay_list0 = [red, orange, yellow, green,cyan, blue, purple, magenta]
+gay_list1 = [orange, yellow, green, cyan, blue, purple, magenta, red]
+gay_list2 = [yellow, green, cyan, blue, purple, magenta, red, orange]
+gay_list3 = [green, cyan, blue, purple, magenta, red, orange, yellow]
+gay_list4 = [cyan, blue, purple, magenta, red, orange, yellow, green]
+gay_list5 = [blue, purple, magenta, red, orange, yellow, green, cyan]
+gay_list6 = [purple, magenta, red, orange, yellow, green, cyan, blue]
+gay_list7 = [magenta, red, orange, yellow, green, cyan, blue, purple]
+
+cycle = 0
+
 
 led = digitalio.DigitalInOut(board.GP10)
 led.direction = digitalio.Direction.OUTPUT
@@ -26,8 +43,6 @@ led.direction = digitalio.Direction.OUTPUT
 led.value = False
 
 encoder = rotaryio.IncrementalEncoder(board.GP17, board.GP16, divisor=4)
-
-
 
 last_position = 0
 
@@ -38,6 +53,10 @@ button1.pull = digitalio.Pull.UP
 button_back = digitalio.DigitalInOut(board.GP13)
 button_back.direction = digitalio.Direction.INPUT
 button_back.pull = digitalio.Pull.UP
+
+buttonC = digitalio.DigitalInOut(board.GP20)
+buttonC.direction = digitalio.Direction.INPUT
+buttonC.pull = digitalio.Pull.UP
 
 last_click_state = True
 last_back_state = True
@@ -113,11 +132,61 @@ main_menu = [tile_main_s1, tile_main_s2, tile_main_s3]
 main_group.append(main_menu[0])
 
 layer = 0
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+def gay_beam(cycle, selectron, layer):
+    # rainbow animation
+    pixels[0] = gay_list0[cycle]
+    pixels[1] = gay_list1[cycle]
+    pixels[2] = gay_list2[cycle]
+    pixels[3] = gay_list3[cycle]
+    pixels[4] = gay_list4[cycle]
+    pixels[5] = gay_list5[cycle]
+    pixels[6] = gay_list6[cycle]
+    pixels[7] = gay_list7[cycle]
+
+    # update animation cycle
+    if cycle < 7:
+        cycle += 1
+    else:
+        cycle = 0
+
+    time.sleep(0.0011)
+    pixels.show()
+
+    # brightness / LED logic
+    if selectron == 2 and layer == 1:
+        led.value = True
+        pixels.brightness = 0
+
+    elif selectron == 3:
+        if layer == 1:
+            pixels.brightness = 1
+            led.value = False
+        else:
+            pixels.brightness = 0.05
+            led.value = False
+
+    else:
+        pixels.brightness = 0
+        led.value = False
+
+    return cycle
+
+def gilded_beam():
+    pixels.fill((255, 130, 0))
+    pixels.brightness = 1
+    pixels.show()
+    time.sleep(0.01)
+    pixels.fill((0, 0, 0))
+    pixels.brightness = 0
+    pixels.show()
+        
 #---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 while True:
     current_click = button1.value
     current_back = button_back.value
+    current_C = buttonC.value
 
     if layer == 0:
         current_position = encoder.position
@@ -152,7 +221,7 @@ while True:
         main_group.pop()
         main_group.append(text_area)
         led.value = True
-        time.sleep(0.05)
+        time.sleep(0.005)
         led.value = False
         layer = 1
 
@@ -161,17 +230,20 @@ while True:
         main_group.append(main_menu[current_position % 3])
         last_position = -1 #resets the position so that the display updates when the rotary switch is turned again after pressing the back button
         led.value = True
-        time.sleep(0.05)
+        time.sleep(0.005)
         led.value = False
         layer = 0
     
+    if not current_C and last_C_state: #gilded beam
+        led.value = True
+        time.sleep(0.005)
+        led.value = False
+        gilded_beam()
+    
     last_click_state = current_click
     last_back_state = current_back
+    last_C_state = current_C
 
-
-
-#push button----------------------------------------------
-
-
+    cycle = gay_beam(cycle, selectron, layer)
     
-
+#push button----------------------------------------------
