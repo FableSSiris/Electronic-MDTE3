@@ -116,6 +116,45 @@ tile_main_s1 = displayio.TileGrid(
     x = (display.width - bitmap.width) // 2, 
     y=(display.height - bitmap.height) // 2
 )
+
+migs1 = "mode-menu_s1.bmp"
+bitmap, palette = adafruit_imageload.load(
+    migs1,
+    bitmap=displayio.Bitmap,
+    palette=displayio.Palette
+)
+tile_mode_s1 = displayio.TileGrid(
+    bitmap, 
+    pixel_shader=palette, 
+    x = (display.width - bitmap.width) // 2, 
+    y=(display.height - bitmap.height) // 2
+)
+
+migs2 = "mode-menu_s2.bmp"
+bitmap, palette = adafruit_imageload.load(
+    migs2,
+    bitmap=displayio.Bitmap,
+    palette=displayio.Palette
+)
+tile_mode_s2 = displayio.TileGrid(
+    bitmap, 
+    pixel_shader=palette, 
+    x = (display.width - bitmap.width) // 2, 
+    y=(display.height - bitmap.height) // 2
+)
+
+migs3 = "mode-menu_s3.bmp"
+bitmap, palette = adafruit_imageload.load(
+    migs3,
+    bitmap=displayio.Bitmap,
+    palette=displayio.Palette
+)
+tile_mode_s3 = displayio.TileGrid(
+    bitmap, 
+    pixel_shader=palette, 
+    x = (display.width - bitmap.width) // 2, 
+    y=(display.height - bitmap.height) // 2
+)
 #imageload---------------------------------------------
 
 
@@ -123,15 +162,19 @@ tile_main_s1 = displayio.TileGrid(
 main_group = displayio.Group()
 display.root_group = main_group
 main_menu = [tile_main_s1, tile_main_s2, tile_main_s3]
+mode_menu = [tile_mode_s1, tile_mode_s2, tile_mode_s3]
 main_group.append(main_menu[0])
 
 #lovibabeles---------------------------------------------
 layer = 0
+lSet = ["DEBUG", "OFF", "ON"]
 debug = True
 dir = 0
 briper = int(pixels.brightness * 100)
 pixelState = 0
 main_menu_state = 0
+mode_menu_state = 0
+led_state = 0
 colourState = (255, 255, 255)
 
 def gay_beam(cycle, main_menu_state, layer):
@@ -198,7 +241,13 @@ def pixel_switch(what):
         pixels.show()
         pixelState = 0
 
-        
+def LED_toggle(lever):
+    global debug
+    if debug == False:
+        if lever == "off":
+            led.value = False
+        elif lever == "on":
+            led.value = True
 text_area_brightness = label.Label( #filler
         terminalio.FONT,
         text= f"BRIGHTNESS [{briper}%]",
@@ -215,14 +264,25 @@ text_area_mode = label.Label( #filler
     )
 text_area_LED = label.Label( #filler
         terminalio.FONT,
-        text= f"LED SHOW",
+        text= f"TOGGLE <{lSet[0]}>",
         scale = 1,
-        x=40,
+        x=28,
         y=display.height//2
     )        
 #---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 while True:
     text_area_brightness.text = f"BRIGHTNESS [{briper}%]"
+
+    if text_area_LED.text == f"TOGGLE <{lSet[0]}>":
+        LED_toggle("off")
+        debug = True
+    
+    elif text_area_LED.text == f"TOGGLE <{lSet[1]}>":
+        debug = False
+        LED_toggle("off")
+    elif text_area_LED.text == f"TOGGLE <{lSet[2]}>":
+        debug = False
+        LED_toggle("on")
 
     current_click = button1.value
     current_back = button_back.value
@@ -256,12 +316,19 @@ while True:
                 last_position = current_position
             if main_menu_state == 1: 
                 main_group.pop()
-                main_group.append(text_area_mode)
+                main_group.append(mode_menu[mode_menu_state])
                 dir = 2
+                encoder.position = mode_menu_state
+                current_position = encoder.position
+                last_position = current_position
+                current_position = last_position
             if main_menu_state == 2: 
                 main_group.pop()
                 main_group.append(text_area_LED)
                 dir = 3
+                encoder.position = led_state
+                current_position = encoder.position
+                last_position = current_position
             if debug == True:
                 debug_print()
             layer = 1
@@ -284,13 +351,18 @@ while True:
 
                 text_area_brightness.text = f"BRIGHTNESS [{briper}%]"
                 last_position = current_position
-
-        
-                   
-        #if dir == 2:
-            #last_position = -1
-        #if dir == 3:
-            #last_position = -1
+      
+        if dir == 2:
+            if current_position != last_position:
+                mode_menu_state = current_position % 3
+                main_group.pop()
+                main_group.append(mode_menu[mode_menu_state])
+                last_position = current_position
+        if dir == 3:
+            if current_position != last_position:
+                led_state = (current_position) % 3
+                text_area_LED.text = f"TOGGLE <{lSet[led_state]}>"
+                last_position = current_position
 
         if not current_back and last_back_state:
             main_group.pop()
