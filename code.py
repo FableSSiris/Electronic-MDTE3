@@ -235,10 +235,12 @@ def pixel_switch(what):
     if what == "on":
         pixels.fill(colourState)
         pixels.show()
+        print(f"Pixels turned on with colour {colourState}")
         pixelState = 1
     elif what == "off":
         pixels.fill((0,0,0))
         pixels.show()
+        print("Pixels turned off")
         pixelState = 0
 
 def LED_toggle(lever):
@@ -305,6 +307,7 @@ while True:
             main_menu_state = current_position % 3
             main_group.pop()
             main_group.append(main_menu[main_menu_state])
+            print(f"Current main menu option selected [{main_menu_state + 1}]")
             last_position = current_position
         #rotary switch---------------------------------------------
 
@@ -313,6 +316,7 @@ while True:
                 main_group.pop()
                 main_group.append(text_area_brightness)
                 dir = 1
+                print(f"Opened brightness menu")
                 last_position = current_position
             if main_menu_state == 1: 
                 main_group.pop()
@@ -320,6 +324,8 @@ while True:
                 dir = 2
                 encoder.position = mode_menu_state
                 current_position = encoder.position
+                print(f"Opened mode menu")
+                print(f"Current mode menu option selected [{mode_menu_state + 1}]")
                 last_position = current_position
                 current_position = last_position
             if main_menu_state == 2: 
@@ -328,10 +334,12 @@ while True:
                 dir = 3
                 encoder.position = led_state
                 current_position = encoder.position
+                print(f"Opened LED toggle menu")
                 last_position = current_position
             if debug == True:
                 debug_print()
             layer = 1
+            print(f"Directory layer changed to [{layer}]")
 
     if layer == 1:
         if dir == 1:
@@ -350,11 +358,13 @@ while True:
                 pixels.show()
 
                 text_area_brightness.text = f"BRIGHTNESS [{briper}%]"
+                print(f"BRIGHTNESS changed to [{briper}%]")
                 last_position = current_position
       
         if dir == 2:
             if current_position != last_position:
                 mode_menu_state = current_position % 3
+                print(f"Mode menu state changed to [{mode_menu_state}]")
                 main_group.pop()
                 main_group.append(mode_menu[mode_menu_state])
                 last_position = current_position
@@ -362,6 +372,7 @@ while True:
             if current_position != last_position:
                 led_state = (current_position) % 3
                 text_area_LED.text = f"TOGGLE <{lSet[led_state]}>"
+                print(f"LED mode changed to [{lSet[led_state]}]")
                 last_position = current_position
 
         if not current_back and last_back_state:
@@ -370,6 +381,7 @@ while True:
             layer = 0
             dir = 0
             encoder.position = main_menu_state
+            print(f"Directory layer changed to [{layer}]")
             last_position = encoder.position
 
             if debug == True:
