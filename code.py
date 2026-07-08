@@ -14,25 +14,42 @@ from adafruit_display_text import label
 from adafruit_displayio_sh1106 import SH1106
 
 # Initialize the pixel strip
-pixels = neopixel.NeoPixel(board.GP18, 8, brightness=0.2, auto_write=False)
+pixels = neopixel.NeoPixel(board.GP18, 8, brightness=0.20, auto_write=False)
 
-red = (255, 0, 0)
-orange = (255, 64, 0)
-green = (0, 255, 0)
-blue = (0, 0, 255)
-yellow = (255, 255, 0)
-cyan = (0, 255, 255)
-purple = (128, 0, 255)
-magenta = (255, 0, 255)
+print("Initializing...")
 
-gay_list0 = [red, orange, yellow, green,cyan, blue, purple, magenta]
-gay_list1 = [orange, yellow, green, cyan, blue, purple, magenta, red]
-gay_list2 = [yellow, green, cyan, blue, purple, magenta, red, orange]
-gay_list3 = [green, cyan, blue, purple, magenta, red, orange, yellow]
-gay_list4 = [cyan, blue, purple, magenta, red, orange, yellow, green]
-gay_list5 = [blue, purple, magenta, red, orange, yellow, green, cyan]
-gay_list6 = [purple, magenta, red, orange, yellow, green, cyan, blue]
-gay_list7 = [magenta, red, orange, yellow, green, cyan, blue, purple]
+colour_dex = {
+    "white": (255, 255, 255),
+    "red": (255, 0, 0),
+    "orange": (255, 64, 0),
+    "green": (0, 255, 0),
+    "blue": (0, 0, 255),
+    "yellow": (255, 255, 0),
+    "cyan": (0, 255, 255),
+    "purple": (128, 0, 255),
+    "magenta": (255, 0, 255)
+    }
+
+wheel = [
+    'white',
+    'red',
+    'orange',
+    'green',
+    'blue',
+    'yellow',
+    'cyan',
+    'purple',
+    'magenta']
+
+
+gay_list0 = [wheel[1], wheel[2], wheel[3], wheel[4], wheel[5], wheel[6], wheel[7], wheel[8]]
+gay_list1 = [wheel[2], wheel[3], wheel[4], wheel[5], wheel[6], wheel[7], wheel[8], wheel[1]]
+gay_list2 = [wheel[3], wheel[4], wheel[5], wheel[6], wheel[7], wheel[8], wheel[1], wheel[2]]
+gay_list3 = [wheel[4], wheel[5], wheel[6], wheel[7], wheel[8], wheel[1], wheel[2], wheel[3]]
+gay_list4 = [wheel[5], wheel[6], wheel[7], wheel[8], wheel[1], wheel[2], wheel[3], wheel[4]]
+gay_list5 = [wheel[6], wheel[7], wheel[8], wheel[1],wheel[2],wheel[3],wheel[4],wheel[5]]
+gay_list6 = [wheel[7],wheel[8],wheel[1],wheel[2],wheel[3],wheel[4],wheel[5],wheel[6]]
+gay_list7 = [wheel[8],wheel[1],wheel[2],wheel[3],wheel[4],wheel[5],wheel[6],wheel[7]]
 
 cycle = 0
 
@@ -157,25 +174,26 @@ tile_mode_s3 = displayio.TileGrid(
 )
 #imageload---------------------------------------------
 
-
 #display constant--------------------------------------
 main_group = displayio.Group()
 display.root_group = main_group
 main_menu = [tile_main_s1, tile_main_s2, tile_main_s3]
 mode_menu = [tile_mode_s1, tile_mode_s2, tile_mode_s3]
 main_group.append(main_menu[0])
+print("Loaded main menu")
 
 #lovibabeles---------------------------------------------
 layer = 0
-lSet = ["DEBUG", "OFF", "ON"]
+lSet = ["OFF", "DEBUG", "ON"]
 debug = True
 dir = 0
-briper = int(pixels.brightness * 100)
+des = 0
+briper = round(int(pixels.brightness * 100))
 pixelState = 0
 main_menu_state = 0
 mode_menu_state = 0
 led_state = 0
-colourState = (255, 255, 255)
+colourState = colour_dex.get(wheel[0])
 
 def gay_beam(cycle, main_menu_state, layer):
     # rainbow animation
@@ -217,7 +235,7 @@ def gay_beam(cycle, main_menu_state, layer):
     return cycle
 
 def gilded_beam():
-    pixels.fill(yellow)
+    pixels.fill(colour_dex.get(wheel[5]))
     pixels.brightness = 1
     pixels.show()
     time.sleep(0.01)
@@ -254,32 +272,39 @@ text_area_brightness = label.Label( #filler
         terminalio.FONT,
         text= f"BRIGHTNESS [{briper}%]",
         scale = 1,
-        x=20,
-        y=display.height//2
+        anchor_point=(0.5, 0.5),
+        anchored_position=(display.width // 2, display.height // 2)
     )
 text_area_mode = label.Label( #filler
         terminalio.FONT,
         text= f"MODE SHOW",
         scale = 1,
-        x=40,
-        y=display.height//2
+        anchor_point=(0.5, 0.5),
+        anchored_position=(display.width // 2, display.height // 2)
+    )
+text_area_mode_colour = label.Label( #filler
+        terminalio.FONT,
+        text= f"<{wheel[0].upper()}>",
+        scale = 1,
+        anchor_point=(0.5, 0.5),
+        anchored_position=(display.width // 2, display.height // 2)
     )
 text_area_LED = label.Label( #filler
         terminalio.FONT,
         text= f"TOGGLE <{lSet[0]}>",
         scale = 1,
-        x=28,
-        y=display.height//2
+        anchor_point=(0.5, 0.5),
+        anchored_position=(display.width // 2, display.height // 2)
     )        
 #---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 while True:
     text_area_brightness.text = f"BRIGHTNESS [{briper}%]"
 
-    if text_area_LED.text == f"TOGGLE <{lSet[0]}>":
+    if text_area_LED.text == f"TOGGLE <{lSet[1]}>":
         LED_toggle("off")
         debug = True
     
-    elif text_area_LED.text == f"TOGGLE <{lSet[1]}>":
+    elif text_area_LED.text == f"TOGGLE <{lSet[0]}>":
         debug = False
         LED_toggle("off")
     elif text_area_LED.text == f"TOGGLE <{lSet[2]}>":
@@ -338,8 +363,10 @@ while True:
                 last_position = current_position
             if debug == True:
                 debug_print()
+            last_click_state = current_click
             layer = 1
             print(f"Directory layer changed to [{layer}]")
+
 
     if layer == 1:
         if dir == 1:
@@ -364,10 +391,24 @@ while True:
         if dir == 2:
             if current_position != last_position:
                 mode_menu_state = current_position % 3
-                print(f"Mode menu state changed to [{mode_menu_state}]")
+                print(f"Mode menu option selected [{mode_menu_state + 1}]")
                 main_group.pop()
                 main_group.append(mode_menu[mode_menu_state])
                 last_position = current_position
+            
+            if not current_click and last_click_state:
+                if mode_menu_state == 0:
+                    main_group.pop()
+                    main_group.append(text_area_mode_colour)
+                    des = 0 + 1
+                    layer = 2
+                    print(f"Directory layer changed to [{layer}]")
+                    print(f"Opened colour submenu")
+                else:
+                    pass
+                if debug == True:
+                    debug_print()
+                
         if dir == 3:
             if current_position != last_position:
                 led_state = (current_position) % 3
@@ -381,6 +422,35 @@ while True:
             layer = 0
             dir = 0
             encoder.position = main_menu_state
+            print(f"Directory layer changed to [{layer}]")
+            last_position = encoder.position
+
+            if debug == True:
+                debug_print()
+
+    if layer == 2:
+        if des == 1:
+            if current_position != last_position:
+                colourState = colour_dex.get(wheel[current_position % 9])
+                pixels.fill(colourState)
+                if pixelState == 1:
+                    pixels.show()
+                else:
+                    pass
+                text_area_mode_colour.text = f"<{wheel[current_position % 9].upper()}>"
+                print(f"Colour changed to [{text_area_mode_colour.text}, {colourState}]")
+                last_position = current_position
+        
+
+
+
+
+        if not current_back and last_back_state:
+            main_group.pop()
+            main_group.append(mode_menu[mode_menu_state])
+            layer = 1
+            dir = 2
+            encoder.position = mode_menu_state
             print(f"Directory layer changed to [{layer}]")
             last_position = encoder.position
 
