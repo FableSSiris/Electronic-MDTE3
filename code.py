@@ -112,7 +112,7 @@ def lighters(really):
         pass
 
 def extinguishers(really):
-    global red_value, blue_value, green_value, cms, layer
+    global red_value, blue_value, green_value, cms, layer, last_position
     if cms != "main":
         if really == "red":
             menu_labels[1].text = f"RED   <{red_value}>"
@@ -122,48 +122,29 @@ def extinguishers(really):
             menu_labels[3].text = f"BLUE  <{blue_value}>"
     cms = "main"
     layer = 2
+    encoder.position = current_index
+    last_position = encoder.position
     print("main")
 
 def nozzle():
-    global red_value, blue_value, green_value, cms, current_position, last_position
-    if current_position < last_position:
-                if cms == "red":
-                    red_value += amp
-                    if red_value > 255:
-                        red_value = 0
-                    if red_value < 0:
-                        red_value = 255
-                if cms == "green":
-                    green_value += amp
-                    if green_value > 255:
-                        green_value = 0
-                    if green_value < 0:
-                        green_value = 255
-                if cms == "blue":
-                    blue_value += amp
-                    if blue_value > 255:
-                        blue_value = 0
-                    if blue_value < 0:
-                        blue_value = 255
-    else:
-                if cms == "red":
-                    red_value -= amp
-                    if red_value < 0:
-                        red_value = 255
-                    if red_value > 255:
-                        red_value = 0
-                if cms == "green":
-                    green_value -= amp
-                    if green_value < 0:
-                        green_value = 255
-                    if green_value > 255:
-                        green_value = 0
-                if cms == "blue":
-                    blue_value -= amp
-                    if blue_value < 0:
-                        blue_value = 255
-                    if blue_value > 255:
-                        blue_value = 0
+    global red_value, blue_value, green_value, cms, current_position, last_position, colourState
+    delta = current_position - last_position
+    if cms == "red":
+        red_value -= delta * amp
+        red_value %= 258
+
+    elif cms == "green":
+        green_value -= delta * amp
+        green_value %= 258
+
+    elif cms == "blue":
+        blue_value -= delta * amp
+        blue_value %= 258
+
+    if custom_status == "ON":
+        pixels.fill((red_value,green_value,blue_value))
+        pixels.show()
+        update_custom_status()
 #custom}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
 
 #display setup-----------------------------------------
@@ -486,10 +467,9 @@ while True:
                 dir = 2
                 encoder.position = mode_menu_state
                 current_position = encoder.position
+                last_position = current_position
                 print(f"Opened mode menu")
                 #print(f"Mode menu option selected [{mode_menu_state + 1}]")
-                last_position = current_position
-                current_position = last_position
             if main_menu_state == 2: 
                 main_group.pop()
                 main_group.append(text_area_LED)
@@ -509,9 +489,9 @@ while True:
         if dir == 1:
             if current_position != last_position:
 
-                change = -(current_position - last_position)
-                
-                briper += 2*change
+                delta = current_position - last_position
+
+                briper -= 2 * delta
 
                 if briper < 0:
                     briper = 0
@@ -558,6 +538,9 @@ while True:
                     main_group.append(cursor)
                     des = 2
                     layer = 2
+                    encoder.position = current_index
+                    current_position = encoder.position
+                    last_position = current_position
                     print(f"Directory layer changed to [{layer}]")
                     print(f"Opened custom submenu")
                 else:
@@ -579,6 +562,7 @@ while True:
             layer = 0
             dir = 0
             encoder.position = main_menu_state
+            current_position = encoder.position
             print(f"Directory layer changed to [{layer}]")
             last_position = encoder.position
 
@@ -600,17 +584,14 @@ while True:
         
         if des == 2: 
             if current_position != last_position:
-                if cms == "main" and layer == 2:
-                    if current_position > last_position:
-                        current_index += 1
-                    else:
-                        current_index -= 1
-                    if current_index < 0:
-                        current_index = 3
-                    elif current_index > 3:
-                        current_index = 0
-                    cursor.y = 10 + (current_index * 15)
-                    last_position = current_position
+                delta = current_position - last_position
+
+                current_index += delta
+                current_index %= 4
+
+                cursor.y = 10 + current_index * 15
+
+                last_position = current_position
                     
         
             if not current_click and last_click_state:
@@ -625,25 +606,28 @@ while True:
                         else:
                             print("To access custom mode, main LED must be ON")
                         custom_menu_items[0] = f"Status <{custom_status}>"
-                        main_group.remove(menu_labels[0])
-                        item_label = label.Label(font, text=custom_menu_items[0], x=15, y=10)
-                        menu_labels[0] = item_label
-                        main_group.append(item_label)
+                        update_custom_status()
                         frenzy()
                     elif current_index == 1:
                         cms = "red"
                         layer = 3
+                        encoder.position = 0
+                        last_position = 0
                         print(f"Directory layer changed to [{layer}]")
                         print("red")
                     elif current_index == 2:
                         cms = "green"
                         layer = 3
+                        encoder.position = 0
+                        last_position = 0
                         print(f"Directory layer changed to [{layer}]")
                         print("green")
     
                     elif current_index == 3:
                         cms = "blue"
                         layer = 3
+                        encoder.position = 0
+                        last_position = 0
                         print(f"Directory layer changed to [{layer}]")
                         print("blue")
                     lighters(cms)
@@ -696,6 +680,8 @@ while True:
             print(f"Directory layer retreated to [{layer}]")
             if debug == True:
                 debug_print()
+            encoder.position = current_index
+            last_position = encoder.position
 
     last_click_state = current_click
     last_back_state = current_back
