@@ -6,15 +6,28 @@ import digitalio
 import time 
 import displayio
 import terminalio
-import neopixel     
+import neopixel 
+import gc    
 import i2cdisplaybus
 from adafruit_displayio_ssd1306 import SSD1306
 import adafruit_imageload
 from adafruit_display_text import label
 from adafruit_displayio_sh1106 import SH1106
 
+INTERVAL = 5.0
+last_action_time = time.time()
+
 # Initialize the pixel strip
 pixels = neopixel.NeoPixel(board.GP18, 8, brightness=0.20, auto_write=False)
+last_colour = None
+
+def set_pixels(colour):
+    global last_colour
+
+    if colour != last_colour:
+        pixels.fill(colour)
+        pixels.show()
+        last_colour = colour
 
 print("Initializing...")
 
@@ -51,12 +64,9 @@ gay_list5 = [wheel[6], wheel[7], wheel[8], wheel[1],wheel[2],wheel[3],wheel[4],w
 gay_list6 = [wheel[7],wheel[8],wheel[1],wheel[2],wheel[3],wheel[4],wheel[5],wheel[6]]
 gay_list7 = [wheel[8],wheel[1],wheel[2],wheel[3],wheel[4],wheel[5],wheel[6],wheel[7]]
 """
+#cycle = 0
 
-
-cycle = 0
-
-pixels.fill((0,0,0))
-pixels.show()
+set_pixels((0,0,0))
 
 led = digitalio.DigitalInOut(board.GP10)
 led.direction = digitalio.Direction.OUTPUT
@@ -94,25 +104,26 @@ green_value = 0
 amp = 3
 custom_status = "OFF"
 cms = "main"
-custom_menu_items = [f"Status <{custom_status}>",f"RED   <{red_value}>",f"GREEN <{green_value}>",f"BLUE  <{blue_value}>"]
-menu_labels = []
+menu_labels = [
+    label.Label(font, text="Status <OFF>", x=15, y=10),
+    label.Label(font, text="RED   <0>", x=15, y=25),
+    label.Label(font, text="GREEN <0>", x=15, y=40),
+    label.Label(font, text="BLUE  <0>", x=15, y=55),
+]
 cursor = jlabel(font, text=">", x=0, y=10)
 current_index = 0
 
 def lighters(really):
     global red_value, blue_value, green_value, cms
-    if cms != "main":
-        if really == "red":
-            menu_labels[1].text = f"RED    {red_value}"
-        elif really == "green":
-            menu_labels[2].text = f"GREEN  {green_value}"
-        elif really == "blue":
-            menu_labels[3].text = f"BLUE   {blue_value}"
-    else:
-        pass
+    if really == "red":
+        menu_labels[1].text = f"RED    {red_value}"
+    elif really == "green":
+        menu_labels[2].text = f"GREEN  {green_value}"
+    elif really == "blue":
+        menu_labels[3].text = f"BLUE   {blue_value}"
 
 def extinguishers(really):
-    global red_value, blue_value, green_value, cms, layer, last_position
+    global red_value, blue_value, green_value, cms, layer, last_position, current_position
     if cms != "main":
         if really == "red":
             menu_labels[1].text = f"RED   <{red_value}>"
@@ -122,12 +133,11 @@ def extinguishers(really):
             menu_labels[3].text = f"BLUE  <{blue_value}>"
     cms = "main"
     layer = 2
-    encoder.position = current_index
     last_position = encoder.position
     print("main")
 
-def nozzle():
-    global red_value, blue_value, green_value, cms, current_position, last_position, colourState
+def nozzle(delta):
+    global red_value, blue_value, green_value
     delta = current_position - last_position
     if cms == "red":
         red_value -= delta * amp
@@ -142,9 +152,8 @@ def nozzle():
         blue_value %= 258
 
     if custom_status == "ON":
-        pixels.fill((red_value,green_value,blue_value))
-        pixels.show()
         update_custom_status()
+        set_pixels((red_value,green_value,blue_value))      
 #custom}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
 
 #display setup-----------------------------------------
@@ -240,16 +249,6 @@ tile_mode_s3 = displayio.TileGrid(
     y=(display.height - bitmap.height) // 2
 )
 #imageload---------------------------------------------
-
-#display constant--------------------------------------
-main_group = displayio.Group()
-display.root_group = main_group
-main_menu = [tile_main_s1, tile_main_s2, tile_main_s3]
-mode_menu = [tile_mode_s1, tile_mode_s2, tile_mode_s3]
-main_group.append(main_menu[0])
-print("Loaded main menu")
-
-
 #lovibabeles---------------------------------------------
 layer = 0
 lSet = ["OFF", "DEBUG", "ON"]
@@ -258,12 +257,65 @@ dir = 0
 des = 0
 custom_status = "OFF"
 briper = round(int(pixels.brightness * 100))
+old_briper = briper
 pixelState = 0
 main_menu_state = 0
 mode_menu_state = 0
 led_state = 0
-colourState = colour_dex.get(wheel[0])
-pixels.fill(colourState)
+colour_index = 0
+colourState = colour_dex[(wheel[0])]
+
+text_area_brightness = jlabel( #filler
+        font,
+        text= f"BRIGHTNESS [{briper}%]",
+        scale = 1,
+        anchor_point=(0.5, 0.5),
+        anchored_position=(display.width // 2, display.height // 2)
+    )
+text_area_mode_colour = jlabel( #filler
+        font,
+        text= f"<{wheel[0].upper()}>",
+        scale = 1,
+        anchor_point=(0.5, 0.5),
+        anchored_position=(display.width // 2, display.height // 2)
+    )
+text_area_LED = jlabel( #filler
+        font,
+        text= f"TOGGLE <{lSet[0]}>",
+        scale = 1,
+        anchor_point=(0.5, 0.5),
+        anchored_position=(display.width // 2, display.height // 2)
+    )
+#display constant--------------------------------------
+main_menu = [tile_main_s1, tile_main_s2, tile_main_s3]
+mode_menu = [tile_mode_s1, tile_mode_s2, tile_mode_s3]
+
+
+main_menu_group = displayio.Group()
+main_menu_group.append(tile_main_s1)
+
+mode_menu_group = displayio.Group()
+mode_menu_group.append(tile_mode_s1)
+
+brightness_group = displayio.Group()
+brightness_group.append(text_area_brightness)
+
+led_group = displayio.Group()
+led_group.append(text_area_LED)
+
+colour_group = displayio.Group()
+colour_group.append(text_area_mode_colour)
+
+custom_group = displayio.Group()
+for lbl in menu_labels:
+    custom_group.append(lbl)
+custom_group.append(cursor)
+
+display.root_group = main_menu_group
+print("Loaded main menu")
+
+
+
 
 """
 def gay_beam(cycle, main_menu_state, layer):
@@ -318,24 +370,20 @@ def gilded_beam():
 
 def debug_print():
     led.value = True
-    time.sleep(0.005)
     led.value = False
 
-def pixel_switch(what):
-    global pixelState, custom_status
-    if what == "on":
+def pixel_switch(on):
+    global pixelState
+    if on:
         pixelState = 1
-
         if custom_status == "ON":
-            pixels.fill((red_value, green_value, blue_value))
+            set_pixels((red_value, green_value, blue_value))
         else:
-            pixels.fill(colourState)
-        print("Pixels turned on")
-        pixels.show()
-    elif what == "off":
-        pixels.fill((0,0,0))
-        pixels.show()
-        print("Pixels turned off")
+            set_pixels(colourState)        
+        #print("Pixels turned on")
+    else:
+        set_pixels((0,0,0))
+        #print("Pixels turned off")
         pixelState = 0
 
 def LED_toggle(lever):
@@ -351,53 +399,17 @@ def frenzy():
         return
 
     if custom_status == "ON":
-        pixels.fill((red_value, green_value, blue_value))
+        set_pixels((red_value, green_value, blue_value))
     else:
-        pixels.fill(colourState)
-
-    pixels.show()
+        set_pixels(colourState)
 
 def update_custom_status():
-    custom_menu_items[0] = f"Status <{custom_status}>"
+    menu_labels[0].text = f"Status <{custom_status}>"
 
-    if layer == 2 and des == 2 and len(menu_labels) >= 4:
-        menu_labels[0].text = custom_menu_items[0]
+def update_briper():
+    text_area_brightness.text = f"BRIGHTNESS [{briper}%]"
 
-text_area_brightness = jlabel( #filler
-        font,
-        text= f"BRIGHTNESS [{briper}%]",
-        scale = 1,
-        anchor_point=(0.5, 0.5),
-        anchored_position=(display.width // 2, display.height // 2)
-    )
-text_area_mode = jlabel( #filler
-        font,
-        text= f"MODE SHOW",
-        scale = 1,
-        anchor_point=(0.5, 0.5),
-        anchored_position=(display.width // 2, display.height // 2)
-    )
-text_area_mode_colour = jlabel( #filler
-        font,
-        text= f"<{wheel[0].upper()}>",
-        scale = 1,
-        anchor_point=(0.5, 0.5),
-        anchored_position=(display.width // 2, display.height // 2)
-    )
-text_area_mode_custom = jlabel( #filler
-        font,
-        text= f"CUSTOM",
-        scale = 1,
-        anchor_point=(0.5, 0.5),
-        anchored_position=(display.width // 2, display.height // 2)
-    )
-text_area_LED = jlabel( #filler
-        font,
-        text= f"TOGGLE <{lSet[0]}>",
-        scale = 1,
-        anchor_point=(0.5, 0.5),
-        anchored_position=(display.width // 2, display.height // 2)
-    )
+
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -416,82 +428,86 @@ text_area_LED = jlabel( #filler
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-while True:
-    text_area_brightness.text = f"BRIGHTNESS [{briper}%]"
 
-    if text_area_LED.text == f"TOGGLE <{lSet[1]}>":
+
+
+while True:
+###debug den#########################################################
+    current_time = time.time()
+    if current_time - last_action_time >= INTERVAL:
+        #gc.collect()
+        print(gc.mem_free(), gc.mem_alloc(), len(main_menu_group))
+        print(encoder.position)
+        last_action_time = current_time
+#####################################################################
+    current_position = encoder.position
+
+    delta = current_position - last_position
+
+    
+
+    if briper != old_briper:
+        old_briper = briper
+        update_briper()
+
+    if led_state == 1:
         LED_toggle("off")
         debug = True
     
-    elif text_area_LED.text == f"TOGGLE <{lSet[0]}>":
-        debug = False
-        LED_toggle("off")
-    elif text_area_LED.text == f"TOGGLE <{lSet[2]}>":
+    elif led_state == 2:
         debug = False
         LED_toggle("on")
+    elif led_state == 0:
+        debug = False
+        LED_toggle("off")
 
     current_click = button1.value
     current_back = button_back.value
     current_C = buttonC.value
-    current_position = encoder.position
     
     if not current_C and last_C_state: #give confirm button a purpose
         print("Confirm button pressed")
-        if pixelState == 0:
-            pixel_switch("on")
-        elif pixelState == 1:
-            pixel_switch("off")
+        pixel_switch(not pixelState)
         if debug == True:
             debug_print()
 
     if layer == 0:        
         #rotary switch---------------------------------------------
-        if current_position != last_position:
-            main_menu_state = current_position % 3
-            main_group.pop()
-            main_group.append(main_menu[main_menu_state])
+        if delta:
+            main_menu_state += delta
+            main_menu_state %= 3
+            try:
+                main_menu_group[0]=main_menu[main_menu_state]
+            except ValueError as e:
+                print("Display Error: " ,e)
             #print(f"Current main menu option selected [{main_menu_state + 1}]")
-            last_position = current_position
         #rotary switch---------------------------------------------
 
         if not current_click and last_click_state:
             if main_menu_state == 0: 
-                main_group.pop()
-                main_group.append(text_area_brightness)
+                display.root_group = brightness_group
                 dir = 1
                 print(f"Opened brightness menu")
-                last_position = current_position
-            if main_menu_state == 1: 
-                main_group.pop()
-                main_group.append(mode_menu[mode_menu_state])
+            elif main_menu_state == 1: 
+                display.root_group = mode_menu_group
                 dir = 2
-                encoder.position = mode_menu_state
-                current_position = encoder.position
-                last_position = current_position
                 print(f"Opened mode menu")
+                last_position = encoder.position
                 #print(f"Mode menu option selected [{mode_menu_state + 1}]")
-            if main_menu_state == 2: 
-                main_group.pop()
-                main_group.append(text_area_LED)
+            elif main_menu_state == 2: 
+                display.root_group = led_group
                 dir = 3
-                encoder.position = led_state
-                current_position = encoder.position
                 print(f"Opened LED toggle menu")
-                last_position = current_position
             if debug == True:
                 debug_print()
             last_click_state = current_click
             layer = 1
             print(f"Directory layer changed to [{layer}]")
 
-
     if layer == 1:
         if dir == 1:
-            if current_position != last_position:
-
-                delta = current_position - last_position
-
-                briper -= 2 * delta
+            if delta:
+                briper -= delta * 2
 
                 if briper < 0:
                     briper = 0
@@ -501,97 +517,67 @@ while True:
                 pixels.brightness = briper / 100
                 if pixelState == 1:
                     pixels.show()
-
-                text_area_brightness.text = f"BRIGHTNESS [{briper}%]"
                 #print(f"BRIGHTNESS changed to [{briper}%]")
-                last_position = current_position
       
         if dir == 2:
-            if current_position != last_position:
-                mode_menu_state = current_position % 3
+            if delta:
+                mode_menu_state = (mode_menu_state + delta) % 3
                 #print(f"Mode menu option selected [{mode_menu_state + 1}]")
-                main_group.pop()
-                main_group.append(mode_menu[mode_menu_state])
-                last_position = current_position
+                if mode_menu_group[0] is not mode_menu[mode_menu_state]:
+                    mode_menu_group[0] = mode_menu[mode_menu_state]
             
             if not current_click and last_click_state:
                 if mode_menu_state == 0:
-                    main_group.pop()
-                    main_group.append(text_area_mode_colour)
+                    display.root_group= colour_group
                     des = 1
                     layer = 2
                     print(f"Directory layer changed to [{layer}]")
                     print(f"Opened colour submenu")
-                if mode_menu_state == 1: #CUSTOM MENU
-                    main_group.pop()
-                    custom_menu_items = [
-                        f"Status <{custom_status}>",
-                            f"RED   <{red_value}>",
-                    f"GREEN <{green_value}>",
-                                f"BLUE  <{blue_value}>"
-                                                    ]
-                    for index, item_text in enumerate(custom_menu_items):
-                        y_pos = 10 + (index * 15)
-                        item_label = jlabel(font, text=item_text, x=15, y=y_pos)
-                        menu_labels.append(item_label)
-                        main_group.append(item_label)
-                    main_group.append(cursor)
+                elif mode_menu_state == 1: #CUSTOM MENU
+                    display.root_group = custom_group
                     des = 2
                     layer = 2
-                    encoder.position = current_index
-                    current_position = encoder.position
-                    last_position = current_position
-                    print(f"Directory layer changed to [{layer}]")
-                    print(f"Opened custom submenu")
-                else:
-                    pass
+                    last_position = encoder.position
+                    #print(f"Directory layer changed to [{layer}]")
+                    #print(f"Opened custom submenu")
+                elif mode_menu_state == 2:
+                    print("PERIOD feature coming soon")
                 last_click_state = current_click
                 if debug == True:
-                    debug_print()
-                
+                    debug_print()        
         if dir == 3:
-            if current_position != last_position:
-                led_state = (current_position) % 3
+            if delta:
+                led_state = (led_state + delta) % 3
                 text_area_LED.text = f"TOGGLE <{lSet[led_state]}>"
-                print(f"LED mode changed to [{lSet[led_state]}]")
-                last_position = current_position
+                #print(f"LED mode changed to [{lSet[led_state]}]")
 
         if not current_back and last_back_state:
-            main_group.pop()
-            main_group.append(main_menu[main_menu_state])
+            display.root_group = main_menu_group
             layer = 0
             dir = 0
-            encoder.position = main_menu_state
-            current_position = encoder.position
-            print(f"Directory layer changed to [{layer}]")
+            #print(f"Directory layer changed to [{layer}]")
             last_position = encoder.position
-
             if debug == True:
                 debug_print()
 
     if layer == 2:
         if des == 1:
-            if current_position != last_position:
-                colourState = colour_dex.get(wheel[current_position % 9])
-                pixels.fill(colourState)
-                if pixelState == 1 and custom_status == "OFF":
+            if delta:
+                colour_index = (colour_index + delta) % 9
+                colourState = colour_dex[wheel[colour_index]]
+                set_pixels(colourState)
+                custom_status = "OFF"
+                if pixelState == 1:
                     pixels.show()
-                else:
-                    pass
-                text_area_mode_colour.text = f"<{wheel[current_position % 9].upper()}>"
+                text_area_mode_colour.text = f"<{wheel[colour_index].upper()}>"
                 #print(f"Colour changed to [{text_area_mode_colour.text}, {colourState}]")
-                last_position = current_position
-        
+                update_custom_status()
         if des == 2: 
-            if current_position != last_position:
-                delta = current_position - last_position
-
+            if delta:
                 current_index += delta
                 current_index %= 4
 
                 cursor.y = 10 + current_index * 15
-
-                last_position = current_position
                     
         
             if not current_click and last_click_state:
@@ -599,38 +585,35 @@ while True:
                     if current_index == 0:
                         if custom_status == "OFF" and pixelState == 1:
                             custom_status = "ON"
-                            print("Turned on custom mode with {}")
+                            #print("Turned on custom mode with {}")
                         elif custom_status == "ON":
                             custom_status = "OFF"
-                            print("Turned off custom mode.")
+                            #print("Turned off custom mode.")
                         else:
                             print("To access custom mode, main LED must be ON")
-                        custom_menu_items[0] = f"Status <{custom_status}>"
                         update_custom_status()
                         frenzy()
                     elif current_index == 1:
                         cms = "red"
                         layer = 3
-                        encoder.position = 0
-                        last_position = 0
-                        print(f"Directory layer changed to [{layer}]")
-                        print("red")
+                        #print(f"Directory layer changed to [{layer}]")
+                        #print("red")
+                        lighters(cms)
+                        last_position = encoder.position
                     elif current_index == 2:
                         cms = "green"
                         layer = 3
-                        encoder.position = 0
-                        last_position = 0
-                        print(f"Directory layer changed to [{layer}]")
-                        print("green")
-    
+                        #print(f"Directory layer changed to [{layer}]")
+                        #print("green")
+                        lighters(cms)
+                        last_position = encoder.position
                     elif current_index == 3:
                         cms = "blue"
                         layer = 3
-                        encoder.position = 0
-                        last_position = 0
-                        print(f"Directory layer changed to [{layer}]")
-                        print("blue")
-                    lighters(cms)
+                        #print(f"Directory layer changed to [{layer}]")
+                        #print("blue")
+                        lighters(cms)
+                        last_position = encoder.position
                 if debug == True:
                     debug_print()
   
@@ -642,54 +625,39 @@ while True:
         
 
         if not current_back and last_back_state:
-            for lbl in menu_labels:
-                main_group.remove(lbl)
-
-            menu_labels.clear()
-
-            try:
-                main_group.remove(cursor)
-            except ValueError:
-                pass
-            try:
-                main_group.remove(text_area_mode_colour)
-            except ValueError:
-                pass
-            main_group.append(mode_menu[mode_menu_state])
+            display.root_group = mode_menu_group
             layer = 1
             dir = 2
-            encoder.position = mode_menu_state
-            print(f"Directory layer retreated to [{layer}]")
+
+            #print(f"Directory layer retreated to [{layer}]")
             last_position = encoder.position
 
             if debug == True:
                 debug_print()
 
     if layer == 3:
-        if current_position != last_position:
-            nozzle()
+        if delta:
+            nozzle(delta)
             lighters(cms)
-            last_position = current_position
 
         if not current_back and last_back_state:
             if cms != "main":
                     extinguishers(cms)
-            else:
-                pass
             layer = 2
-            print(f"Directory layer retreated to [{layer}]")
+            last_position = encoder.position
+            #print(f"Directory layer retreated to [{layer}]")
             if debug == True:
                 debug_print()
-            encoder.position = current_index
-            last_position = encoder.position
 
     last_click_state = current_click
     last_back_state = current_back
     last_C_state = current_C
 
+    last_position = current_position
+    time.sleep(0.01)
     #Experimental functions (not part of real product)
     """
     #cycle = gay_beam(cycle, main_menu_state, layer)
     #gilded_beam()
     """
-    
+
