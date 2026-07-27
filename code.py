@@ -14,7 +14,7 @@ import adafruit_imageload
 from adafruit_display_text import label
 from adafruit_displayio_sh1106 import SH1106
 
-INTERVAL = 5.0
+D_INTERVAL = 5.0
 last_action_time = time.time()
 
 # Initialize the pixel strip
@@ -54,18 +54,6 @@ wheel = [
     'purple',
     'magenta']
 
-"""
-gay_list0 = [wheel[1], wheel[2], wheel[3], wheel[4], wheel[5], wheel[6], wheel[7], wheel[8]]
-gay_list1 = [wheel[2], wheel[3], wheel[4], wheel[5], wheel[6], wheel[7], wheel[8], wheel[1]]
-gay_list2 = [wheel[3], wheel[4], wheel[5], wheel[6], wheel[7], wheel[8], wheel[1], wheel[2]]
-gay_list3 = [wheel[4], wheel[5], wheel[6], wheel[7], wheel[8], wheel[1], wheel[2], wheel[3]]
-gay_list4 = [wheel[5], wheel[6], wheel[7], wheel[8], wheel[1], wheel[2], wheel[3], wheel[4]]
-gay_list5 = [wheel[6], wheel[7], wheel[8], wheel[1],wheel[2],wheel[3],wheel[4],wheel[5]]
-gay_list6 = [wheel[7],wheel[8],wheel[1],wheel[2],wheel[3],wheel[4],wheel[5],wheel[6]]
-gay_list7 = [wheel[8],wheel[1],wheel[2],wheel[3],wheel[4],wheel[5],wheel[6],wheel[7]]
-"""
-#cycle = 0
-
 set_pixels((0,0,0))
 
 led = digitalio.DigitalInOut(board.GP10)
@@ -96,31 +84,213 @@ last_C_state = True
 jlabel = label.Label
 jload = adafruit_imageload.load
 
+#lovibabeles---------------------------------------------
+layer = 0
+lSet = ["OFF", "DEBUG", "ON"]
+debug = True
+dir = 0
+des = 0
+custom_status = "OFF"
+briper = round((pixels.brightness * 100))
+old_briper = briper
+pixelState = 0
+main_menu_state = 0
+mode_menu_state = 0
+redditing = False
+led_state = 0
+colour_index = 0
+colourPreset = colour_dex[(wheel[0])]
 #custom<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 font = terminalio.FONT
-red_value = 0
-blue_value = 0
-green_value = 0
+red_value, blue_value, green_value = 255, 0, 0
+cms = "main"
 AMP = 3
 custom_status = "OFF"
-cms = "main"
 custom_menu_labels = [
     label.Label(font, text="Status <OFF>", x=15, y=10),
-    label.Label(font, text="RED   <0>", x=15, y=25),
+    label.Label(font, text="RED   <255>", x=15, y=25),
     label.Label(font, text="GREEN <0>", x=15, y=40),
     label.Label(font, text="BLUE  <0>", x=15, y=55),
 ]
 cursor = jlabel(font, text=">", x=0, y=10)
 current_index = 0
 #period<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+arra = ["<PS>", "<CT>"]
+aradict = {"<PS>": colourPreset, "<CT>": (red_value, green_value, blue_value)}
+arravalues = [None, None]
+
+def update_arravalues():
+    arravalues[0] = colourPreset
+    arravalues[1] = (red_value, green_value, blue_value)
+    print(arravalues)
+
+rhythdict = {
+    "A":(1),
+    "B":(1/2, 1/2),
+    "C":(1/2, 1/4, 1/4),
+    "D":(1/4, 1/4, 1/2),
+    "E":(1/3, 1/3, 1/3),
+    "F":(3/4, 1/4),
+    "G":(1/4,1/4,1/4,1/4),
+    "H":(-1/2, 1/2),
+    "I":(1/2, -1/2),
+    "J":(-1),
+    "K":(-1/4, 1/4, 1/4, -1/4),
+    "L":(-1/4, 1/4, 1/4, 1/4),
+    "M":(1/4, 3/4),
+    "N": None
+}
+period = 4.0          # seconds
+next_beat_time = time.monotonic()
+period_index = 0
+timsig = 0
+current_colour = 0
+pms = "main"
+beatlist = []
+k1, k2, k3 ,k4 = ["N","A","B","C","D","E","F","G","H","I","J","K","L","M"],["N","A","B","C","D","E","F","G","H","I","J","K","L","M"],["N","A","B","C","D","E","F","G","H","I","J","K","L","M"],["N","A","B","C","D","E","F","G","H","I","J","K","L","M"]
+k1v, k2v, k3v, k4v = 1,2,3,0
+period_status = "SAVE/TURN ON"
 period_menu_labels = [
-    label.Label(font, text="NOTHING", x=15, y=10),
-    label.Label(font, text="NOTHING", x=15, y=25),
-    label.Label(font, text="NOTHING", x=15, y=40),
-    label.Label(font, text="NOTHING", x=15, y=55),
+    label.Label(font, text="FIR <PS>", x=15, y=10),
+    label.Label(font, text=f"RHY [<{k1[k1v]}><{k2[k2v]}><{k3[k3v]}><{k4[k4v]}>]", x=15, y=25),
+    label.Label(font, text=f"PRD <4.0s>", x=15, y=40),
+    label.Label(font, text="STS [SAVE/TURN ON]", x=15, y=55),
 ]
 pursor = jlabel(font, text = ">", x = 0 , y= 10)
 purrent_pindex = 0
+rhurrent_rhindex = 0
+rhythmenu = [
+    f" [{k1[k1v]}]<{k2[k2v]}><{k3[k3v]}><{k4[k4v]}> ",
+    f" <{k1[k1v]}>[{k2[k2v]}]<{k3[k3v]}><{k4[k4v]}> ",
+    f" <{k1[k1v]}><{k2[k2v]}>[{k3[k3v]}]<{k4[k4v]}> ",
+    f" <{k1[k1v]}><{k2[k2v]}><{k3[k3v]}>[{k4[k4v]}] "
+]
+redditing_rhythmenu = [
+    f"  {k1[k1v]} <{k2[k2v]}><{k3[k3v]}><{k4[k4v]}> ",
+    f" <{k1[k1v]}> {k2[k2v]} <{k3[k3v]}><{k4[k4v]}> ",
+    f" <{k1[k1v]}><{k2[k2v]}> {k3[k3v]} <{k4[k4v]}> ",
+    f" <{k1[k1v]}><{k2[k2v]}><{k3[k3v]}> {k4[k4v]}  "
+]
+print(arravalues)
+
+def switcheroo(): #complete
+    global colourPreset, red_value, green_value, blue_value
+    arra.reverse()
+    period_menu_labels[0].text = f"FIR {arra[0]}"
+    arravalues.reverse()
+
+def enter_rhythm_editor(jack):
+    strings = [
+            f" [{k1[k1v]}]<{k2[k2v]}><{k3[k3v]}><{k4[k4v]}> ",
+            f" <{k1[k1v]}>[{k2[k2v]}]<{k3[k3v]}><{k4[k4v]}> ",
+            f" <{k1[k1v]}><{k2[k2v]}>[{k3[k3v]}]<{k4[k4v]}> ",
+            f" <{k1[k1v]}><{k2[k2v]}><{k3[k3v]}>[{k4[k4v]}] "
+        ]
+    if jack:
+        period_menu_labels[1].text = "RHY " + strings[jack]
+    else:
+        period_menu_labels[1].text = "RHY " + strings[0]
+
+def update_period_status():
+    period_menu_labels[3].text = f"STS <{period_status}>"
+
+def periodcfg():
+    period_menu_labels[2].text = f"PRD  {period}s "
+
+
+def process_rhythm():
+    global beatlist, timsig
+
+    beatlist = []
+
+    update_arravalues() #update arra for good measure
+
+    keys = [k1[k1v], k2[k2v], k3[k3v], k4[k4v]]
+
+    timsig = len([key for key in keys if key != "N"])
+
+    if timsig == 0: #test for null time signature
+        return
+
+    for key in (k1[k1v], k2[k2v], k3[k3v], k4[k4v]): #build rhythm
+        value = rhythdict[key]
+
+        if value == None:
+            continue
+        if isinstance(value, tuple):
+            beatlist.extend(value)
+        else:
+            beatlist.append(value)
+
+def output_rhythm():
+    global period_index
+    global next_beat_time
+    global current_colour
+    global timsig
+
+    if period_status == "SAVE/TURN ON":
+        frenzy()
+        return
+
+    now = time.monotonic()
+
+    if now < next_beat_time:
+        return
+
+    print(period_index)
+    print(timsig)
+    beat = beatlist[period_index]
+
+    duration = abs(beat) * (period/timsig)
+
+    if beat >= 0:
+        set_pixels(arravalues[current_colour])
+        current_colour ^= 1
+    else:
+        set_pixels((0,0,0))
+
+    next_beat_time = now + duration
+
+    period_index += 1
+    if period_index >= len(beatlist):
+        period_index = 0
+
+def extinguishers_period(really):
+    global pms
+    if pms != "main":
+        if really == "RHY":
+            period_menu_labels[1].text = f"RHY [<{k1[k1v]}><{k2[k2v]}><{k3[k3v]}><{k4[k4v]}>]"
+        if really == "PRD":
+            period_menu_labels[2].text = f"PRD <{period}s>"
+        pms = "main"
+        process_rhythm()
+
+def screw(delta):
+    global period, pms
+    if pms == "PRD":
+        period = (period - delta * 0.5) % 10.5
+
+def flyer(eric):
+    strings = [
+        f"  {k1[k1v]} <{k2[k2v]}><{k3[k3v]}><{k4[k4v]}> ",
+        f" <{k1[k1v]}> {k2[k2v]} <{k3[k3v]}><{k4[k4v]}> ",
+        f" <{k1[k1v]}><{k2[k2v]}> {k3[k3v]} <{k4[k4v]}> ",
+        f" <{k1[k1v]}><{k2[k2v]}><{k3[k3v]}> {k4[k4v]} "
+    ]
+    period_menu_labels[1].text = "RHY " + strings[eric]
+        
+def steer(delta):
+    global k1v, k2v, k3v, k4v, rhurrent_rhindex
+    if redditing == True:
+        if rhurrent_rhindex == 0:
+            k1v = (k1v - delta) % 14
+        if rhurrent_rhindex == 1:
+            k2v = (k2v - delta) % 14
+        if rhurrent_rhindex == 2:
+            k3v = (k3v - delta) % 14
+        if rhurrent_rhindex == 3:
+            k4v = (k4v - delta) % 14
+        
 
 def lighters(really):
     global red_value, blue_value, green_value
@@ -132,7 +302,7 @@ def lighters(really):
         custom_menu_labels[3].text = f"BLUE   {blue_value}"
 
 def extinguishers(really):
-    global red_value, blue_value, green_value, cms, layer, last_position
+    global red_value, blue_value, green_value, cms
     if cms != "main":
         if really == "red":
             custom_menu_labels[1].text = f"RED   <{red_value}>"
@@ -140,28 +310,39 @@ def extinguishers(really):
             custom_menu_labels[2].text = f"GREEN <{green_value}>"
         if really == "blue":
             custom_menu_labels[3].text = f"BLUE  <{blue_value}>"
-    cms = "main"
-    layer = 2
-    last_position = encoder.position
-    print("main")
-
+        cms = "main"
 
 def nozzle(delta):
     global red_value, blue_value, green_value
     if cms == "red":
-        red_value = (red_value - delta * AMP) % 258
+        red_value = (red_value - delta * AMP)
+        if red_value < 0:
+            red_value = 255
+        if red_value > 255:
+            red_value = 0
 
     elif cms == "green":
-        green_value = (green_value - delta * AMP) % 258
+        green_value = (green_value - delta * AMP)
+        if green_value < 0:
+            green_value = 255
+        if green_value > 255:
+            green_value = 0
 
     elif cms == "blue":
-        blue_value = (blue_value - delta * AMP) % 258
+        blue_value = (blue_value - delta * AMP)
+        if blue_value < 0:
+            blue_value = 255
+        if blue_value > 255:
+            blue_value = 0
 
     if custom_status == "ON":
         update_custom_status()
         set_pixels((red_value,green_value,blue_value))
     print(encoder.position, delta)    
 #custom}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+
+
+
 
 #display setup-----------------------------------------
 displayio.release_displays()
@@ -256,21 +437,7 @@ tile_mode_s3 = displayio.TileGrid(
     y=(display.height - bitmap.height) // 2
 )
 #imageload---------------------------------------------
-#lovibabeles---------------------------------------------
-layer = 0
-lSet = ["OFF", "DEBUG", "ON"]
-debug = True
-dir = 0
-des = 0
-custom_status = "OFF"
-briper = round((pixels.brightness * 100))
-old_briper = briper
-pixelState = 0
-main_menu_state = 0
-mode_menu_state = 0
-led_state = 0
-colour_index = 0
-colourState = colour_dex[(wheel[0])]
+
 
 text_area_brightness = jlabel( #filler
         font,
@@ -326,59 +493,6 @@ display.root_group = main_menu_group
 print("Loaded main menu")
 
 
-
-
-"""
-def gay_beam(cycle, main_menu_state, layer):
-    # rainbow animation
-    pixels[0] = gay_list0[cycle]
-    pixels[1] = gay_list1[cycle]
-    pixels[2] = gay_list2[cycle]
-    pixels[3] = gay_list3[cycle]
-    pixels[4] = gay_list4[cycle]
-    pixels[5] = gay_list5[cycle]
-    pixels[6] = gay_list6[cycle]
-    pixels[7] = gay_list7[cycle]
-
-    # update animation cycle
-    if cycle < 7:
-        cycle += 1
-    else:
-        cycle = 0
-
-    time.sleep(0.0011)
-    pixels.show()
-
-    # brightness / LED logic
-    if main_menu_state == 1 and layer == 1:
-        led.value = True
-        pixels.brightness = 0
-
-    elif main_menu_state == 2:
-        if layer == 1:
-            pixels.brightness = 1
-            led.value = False
-        else:
-            pixels.brightness = 0.05
-            led.value = False
-
-    else:
-        pixels.brightness = 0
-        led.value = False
-
-    return cycle
-
-def gilded_beam():
-    pixels.fill(colour_dex.get(wheel[5]))
-    pixels.brightness = 1
-    pixels.show()
-    time.sleep(0.01)
-    pixels.fill((0, 0, 0))
-    pixels.brightness = 0
-    pixels.show()
-"""
-
-
 def debug_print():
     led.value = True
     led.value = False
@@ -390,7 +504,7 @@ def pixel_switch(on):
         if custom_status == "ON":
             set_pixels((red_value, green_value, blue_value))
         else:
-            set_pixels(colourState)        
+            set_pixels(colourPreset)        
         #print("Pixels turned on")
     else:
         set_pixels((0,0,0))
@@ -407,12 +521,13 @@ def LED_toggle(lever):
 
 def frenzy():
     if pixelState != 1:
+        set_pixels((0,0,0))
         return
 
     if custom_status == "ON":
         set_pixels((red_value, green_value, blue_value))
     else:
-        set_pixels(colourState)
+        set_pixels(colourPreset)
 
 def update_custom_status():
     custom_menu_labels[0].text = f"Status <{custom_status}>"
@@ -421,39 +536,20 @@ def update_briper():
     text_area_brightness.text = f"BRIGHTNESS [{briper}%]"
 
 
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------     
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
 
 while "True":
 ###debug den#########################################################
     """
     current_time = time.time()
-    if current_time - last_action_time >= INTERVAL:
+    if current_time - last_action_time >= D_INTERVAL:
         #gc.collect()
         print(gc.mem_free(), gc.mem_alloc(), len(main_menu_group))
         print(encoder.position)
         last_action_time = current_time
 
 """
-    
+    output_rhythm()
 #####################################################################
     current_position = encoder.position // 2
 
@@ -485,6 +581,7 @@ while "True":
         pixel_switch(not pixelState)
         if debug == True:
             debug_print() 
+        print(layer, dir, des)
 
     if layer == 0:        
         #rotary switch---------------------------------------------
@@ -508,7 +605,7 @@ while "True":
                 display.root_group = mode_menu_group
                 dir = 2
                 print(f"Opened mode menu")
-                last_position = encoder.position
+                last_position = encoder.position // 2
                 #print(f"Mode menu option selected [{mode_menu_state + 1}]")
             elif main_menu_state == 2: 
                 display.root_group = led_group
@@ -529,7 +626,7 @@ while "True":
                     briper = 0
                 elif briper > 100:
                     briper = 100
-                print(encoder.position)
+                #print(encoder.position)
                 pixels.brightness = briper / 100
                 if pixelState == 1:
                     pixels.show()
@@ -541,7 +638,7 @@ while "True":
                 #print(f"Mode menu option selected [{mode_menu_state + 1}]")
                 if mode_menu_group[0] is not mode_menu[mode_menu_state]:
                     mode_menu_group[0] = mode_menu[mode_menu_state]
-                print(encoder.position)
+                #print(encoder.position)
             
             if not current_click and last_click_state:
                 if mode_menu_state == 0:
@@ -552,14 +649,17 @@ while "True":
                 elif mode_menu_state == 1: #CUSTOM MENU
                     display.root_group = custom_group
                     des = 2
-                    last_position = encoder.position
+                    update_custom_status()
+                    last_position = encoder.position // 2
                     #print(f"Directory layer changed to [{layer}]")
                     #print(f"Opened custom submenu")
                 elif mode_menu_state == 2:
                     display.root_group = period_group
+                    update_period_status()
                     des = 3
-                    last_position = encoder.position
+                    last_position = encoder.position // 2
                 layer = 2
+                print(f"Layer = {layer}")
                 last_click_state = current_click
                 if debug == True:
                     debug_print()        
@@ -574,7 +674,7 @@ while "True":
             layer = 0
             dir = 0
             #print(f"Directory layer changed to [{layer}]")
-            last_position = encoder.position
+            last_position = encoder.position // 2
             if debug == True:
                 debug_print()
 
@@ -582,35 +682,34 @@ while "True":
         if des == 1:
             if delta: #CUSTOM MENU
                 colour_index = (colour_index + delta) % 9
-                colourState = colour_dex[wheel[colour_index]]
+                colourPreset = colour_dex[wheel[colour_index]]
                 frenzy()
                 text_area_mode_colour.text = f"<{wheel[colour_index].upper()}>"
-                #print(f"Colour changed to [{text_area_mode_colour.text}, {colourState}]")
+                #print(f"Colour changed to [{text_area_mode_colour.text}, {colourPreset}]")
         if des == 2: 
             if delta:
                 current_index += delta
                 current_index %= 4
 
                 cursor.y = 10 + current_index * 15
-                print(encoder.position)
+                #print(encoder.position)
                     
         
             if not current_click and last_click_state:
                 if cms == "main":
                     if current_index == 0:
-                        if custom_status == "OFF" and pixelState == 1:
+                        if custom_status == "OFF":
                             custom_status = "ON"
                             #print("Turned on custom mode with {}")
                         elif custom_status == "ON":
                             custom_status = "OFF"
                             #print("Turned off custom mode.")
-                        else:
-                            print("To access custom mode, main LED must be ON")
                         update_custom_status()
                         frenzy()
                     elif current_index == 1:
                         cms = "red"
                         layer = 3
+                        print(f"Layer = {layer}")
                         #print(f"Directory layer changed to [{layer}]")
                         #print("red")
                         lighters(cms)
@@ -628,7 +727,7 @@ while "True":
                         #print(f"Directory layer changed to [{layer}]")
                         #print("blue")
                         lighters(cms)
-                    last_position = encoder.position
+                    last_position = encoder.position // 2
                 if debug == True:
                     debug_print()
   
@@ -637,6 +736,38 @@ while "True":
                 purrent_pindex += delta
                 purrent_pindex %= 4    
                 pursor.y = 10 + purrent_pindex * 15
+            if not current_click and last_click_state:
+                if purrent_pindex == 0:
+                    switcheroo()
+                    period_status = "SAVE/TURN ON"
+                    update_period_status()
+                elif purrent_pindex == 1:
+                    print("enter_rhythm_editor")
+                    enter_rhythm_editor(0)
+                    period_status = "SAVE/TURN ON"
+                    update_period_status()
+                    rhurrent_rhindex = 0
+                    pms = "RHY"
+                    layer = 3
+                    last_click_state = current_click
+                elif purrent_pindex == 2:
+                    periodcfg()
+                    period_status = "SAVE/TURN ON"
+                    update_period_status()
+                    pms = "PRD"
+                    layer = 3
+                elif purrent_pindex == 3:
+                    if period_status == "SAVE/TURN ON":
+                            process_rhythm()
+                            period_status = "TURN OFF"
+                    elif period_status == "TURN OFF":
+                        process_rhythm()
+                        period_status = "SAVE/TURN ON"
+                    update_period_status()
+
+
+                last_position = encoder.position // 2
+
 
         if not current_back and last_back_state:
             display.root_group = mode_menu_group
@@ -644,25 +775,57 @@ while "True":
             dir = 2
 
             #print(f"Directory layer retreated to [{layer}]")
-            last_position = encoder.position
+            last_position = encoder.position // 2
 
             if debug == True:
                 debug_print()
 
     if layer == 3:
-        if delta:
-            nozzle(delta)
-            lighters(cms)
+        if des == 2:
+            if delta:
+                nozzle(delta)
+                lighters(cms)
             #print(delta)
+        
+        if des == 3: #in period menu
+            if pms == "RHY":
+                if delta:
+                    rhurrent_rhindex = (rhurrent_rhindex - delta) % 4
+                    enter_rhythm_editor(rhurrent_rhindex)
+                    #print(f"Mode menu option selected [{mode_menu_state + 1}]")
+
+                if not current_click and last_click_state:
+                    redditing = True
+                    layer = 4
+                    flyer(rhurrent_rhindex)
+                
+            elif pms == "PRD":
+                    screw(delta)
+                    periodcfg()
+
 
         if not current_back and last_back_state:
-            if cms != "main":
-                    extinguishers(cms)
+            if des == 2:
+                extinguishers(cms)
+            if des == 3:
+                extinguishers_period(pms)
             layer = 2
-            last_position = encoder.position
+            last_position = encoder.position // 2
             #print(f"Directory layer retreated to [{layer}]")
             if debug == True:
                 debug_print()
+
+    if layer == 4:
+        if delta:
+            print("hello?")
+            steer(delta)
+            flyer(rhurrent_rhindex)    
+        if not current_back and last_back_state and redditing:
+            layer = 3
+            redditing = False
+            enter_rhythm_editor(rhurrent_rhindex)
+            rhythmenu = redditing_rhythmenu
+            last_position = encoder.position // 2
 
     last_click_state = current_click
     last_back_state = current_back
@@ -675,4 +838,3 @@ while "True":
     #cycle = gay_beam(cycle, main_menu_state, layer)
     #gilded_beam()
     """
-
