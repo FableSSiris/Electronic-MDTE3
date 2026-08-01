@@ -122,7 +122,6 @@ arravalues = [None, None]
 def update_arravalues():
     arravalues[0] = colourPreset
     arravalues[1] = (red_value, green_value, blue_value)
-    print(arravalues)
 
 rhythdict = {
     "A":(1),
@@ -202,6 +201,7 @@ def process_rhythm():
     global beatlist, timsig
 
     beatlist = []
+    beatlist.clear()
 
     update_arravalues() #update arra for good measure
 
@@ -225,12 +225,17 @@ def process_rhythm():
 def output_rhythm():
     global period_index
     global next_beat_time
+    global pixelState
     global current_colour
     global timsig
 
     if period_status == "SAVE/TURN ON":
-        frenzy()
         return
+
+    if timsig == 0:
+        return
+
+    update_arravalues()
 
     now = time.monotonic()
 
@@ -254,6 +259,20 @@ def output_rhythm():
     period_index += 1
     if period_index >= len(beatlist):
         period_index = 0
+
+def start_period():
+    global period_status
+    global period_index
+    global last_period_time
+    global coefficient
+    global current_colour
+
+    process_rhythm()
+
+    period_index = 0
+    coefficient = 0
+    current_colour = 0
+    last_period_time = time.monotonic()
 
 def extinguishers_period(really):
     global pms
@@ -523,11 +542,11 @@ def frenzy():
     if pixelState != 1:
         set_pixels((0,0,0))
         return
-
-    if custom_status == "ON":
-        set_pixels((red_value, green_value, blue_value))
-    else:
-        set_pixels(colourPreset)
+    if period_status == "SAVE/TURN ON":
+        if custom_status == "ON":
+            set_pixels((red_value, green_value, blue_value))
+        else:
+            set_pixels(colourPreset)
 
 def update_custom_status():
     custom_menu_labels[0].text = f"Status <{custom_status}>"
@@ -549,7 +568,8 @@ while "True":
         last_action_time = current_time
 
 """
-    output_rhythm()
+    if period_status == "TURN OFF":
+        output_rhythm()
 #####################################################################
     current_position = encoder.position // 2
 
@@ -578,6 +598,8 @@ while "True":
     
     if not current_C and last_C_state: #give confirm button a purpose
         print("Confirm button pressed")
+        if period_status != "SAVE/TURN ON":
+            period_status = "SAVE/TURN ON"
         pixel_switch(not pixelState)
         if debug == True:
             debug_print() 
@@ -741,15 +763,16 @@ while "True":
                     switcheroo()
                     period_status = "SAVE/TURN ON"
                     update_period_status()
+                    frenzy()
                 elif purrent_pindex == 1:
                     print("enter_rhythm_editor")
                     enter_rhythm_editor(0)
                     period_status = "SAVE/TURN ON"
                     update_period_status()
+                    frenzy()
                     rhurrent_rhindex = 0
                     pms = "RHY"
                     layer = 3
-                    last_click_state = current_click
                 elif purrent_pindex == 2:
                     periodcfg()
                     period_status = "SAVE/TURN ON"
@@ -758,12 +781,15 @@ while "True":
                     layer = 3
                 elif purrent_pindex == 3:
                     if period_status == "SAVE/TURN ON":
-                            process_rhythm()
-                            period_status = "TURN OFF"
-                    elif period_status == "TURN OFF":
                         process_rhythm()
+                        if timsig != 0:
+                            period_status = "TURN OFF"
+                            start_period()
+                    elif period_status == "TURN OFF":
                         period_status = "SAVE/TURN ON"
+                        frenzy()
                     update_period_status()
+
 
 
                 last_position = encoder.position // 2
