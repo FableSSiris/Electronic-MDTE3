@@ -120,8 +120,8 @@ aradict = {"<PS>": colourPreset, "<CT>": (red_value, green_value, blue_value)}
 arravalues = [None, None]
 
 def update_arravalues():
-    arravalues[0] = colourPreset
-    arravalues[1] = (red_value, green_value, blue_value)
+    arravalues[0] = aradict[arra[0]]
+    arravalues[1] = aradict[arra[1]]
 
 rhythdict = {
     "A":(1),
@@ -176,7 +176,7 @@ def switcheroo(): #complete
     global colourPreset, red_value, green_value, blue_value
     arra.reverse()
     period_menu_labels[0].text = f"FIR {arra[0]}"
-    arravalues.reverse()
+    update_arravalues()
 
 def enter_rhythm_editor(jack):
     strings = [
