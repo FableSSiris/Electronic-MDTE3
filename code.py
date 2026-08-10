@@ -266,9 +266,11 @@ def start_period():
     global last_period_time
     global coefficient
     global current_colour
+    global aradict
 
     process_rhythm()
 
+    aradict = {"<PS>": colourPreset, "<CT>": (red_value, green_value, blue_value)}
     period_index = 0
     coefficient = 0
     current_colour = 0
