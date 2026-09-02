@@ -519,17 +519,21 @@ def debug_print():
     led.value = False
 
 def pixel_switch(on):
-    global pixelState
+    global pixelState, period_status
     if on:
         pixelState = 1
         if custom_status == "ON":
             set_pixels((red_value, green_value, blue_value))
         else:
-            set_pixels(colourPreset)        
+            set_pixels(colourPreset)
+        period_status = "SAVE/TURN ON"
+        update_period_status()        
         #print("Pixels turned on")
     else:
         set_pixels((0,0,0))
         #print("Pixels turned off")
+        period_status = "SAVE/TURN ON"
+        update_period_status()
         pixelState = 0
 
 def LED_toggle(lever):
