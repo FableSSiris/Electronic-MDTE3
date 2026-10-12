@@ -14,16 +14,15 @@ import adafruit_imageload
 from adafruit_display_text import label
 from adafruit_displayio_sh1106 import SH1106
 
-D_INTERVAL = 5.0
-last_action_time = time.time()
+D_INTERVAL = 5.0 #used to check/debug print memory usage (every 5 seconds)
+last_action_time = time.time() #memory usage time helper
 
 # Initialize the pixel strip
 pixels = neopixel.NeoPixel(board.GP18, 8, brightness=0.20, auto_write=False)
-last_colour = None
+last_colour = None #saves last set colour so the program doesn't redundantly set it again if the colour doesn't change
 
-def set_pixels(colour):
+def set_pixels(colour): # sets the colour of the LED
     global last_colour
-
     if colour != last_colour:
         pixels.fill(colour)
         pixels.show()
@@ -31,7 +30,7 @@ def set_pixels(colour):
 
 print("Initializing...")
 
-colour_dex = {
+colour_dex = { #rgb tuples for preset colours
     "white": (255, 255, 255),
     "red": (255, 0, 0),
     "orange": (255, 64, 0),
@@ -43,7 +42,7 @@ colour_dex = {
     "magenta": (255, 0, 255)
     }
 
-wheel = [
+wheel = [ #preset strings that displays in COLOUR labels
     'white',
     'red',
     'orange',
@@ -54,58 +53,58 @@ wheel = [
     'purple',
     'magenta']
 
-set_pixels((0,0,0))
+set_pixels((0,0,0)) 
 
-led = digitalio.DigitalInOut(board.GP10)
+led = digitalio.DigitalInOut(board.GP10) #analog LED & its properties
 led.direction = digitalio.Direction.OUTPUT
 
 led.value = False
 
-encoder = rotaryio.IncrementalEncoder(board.GP17, board.GP16, divisor=2)
+encoder = rotaryio.IncrementalEncoder(board.GP17, board.GP16, divisor=2) #rotary encoder
 
-last_position = 0
+last_position = 0 #rotary encoder last position to handle turning
 
-button1 = digitalio.DigitalInOut(board.GP14)
+button1 = digitalio.DigitalInOut(board.GP14) #main push button
 button1.direction = digitalio.Direction.INPUT
 button1.pull = digitalio.Pull.UP
 
-button_back = digitalio.DigitalInOut(board.GP13)
+button_back = digitalio.DigitalInOut(board.GP13) #back button
 button_back.direction = digitalio.Direction.INPUT
 button_back.pull = digitalio.Pull.UP
 
-buttonC = digitalio.DigitalInOut(board.GP20)
+buttonC = digitalio.DigitalInOut(board.GP20) #confirm button
 buttonC.direction = digitalio.Direction.INPUT
 buttonC.pull = digitalio.Pull.UP
 
-last_click_state = True
+last_click_state = True #check for buttons clicks feedback
 last_back_state = True
 last_C_state = True
 
-jlabel = label.Label
+jlabel = label.Label 
 jload = adafruit_imageload.load
 
 #lovibabeles---------------------------------------------
-layer = 0
-lSet = ["OFF", "DEBUG", "ON"]
-debug = True
-dir = 0
-des = 0
-custom_status = "OFF"
+layer = 0 #governs layers of the menu directory
+lSet = ["OFF", "DEBUG", "ON"] #states of the analog LED
+debug = True #if true, will print out things in the serial monitor
+dir = 0 #governs current selected menu label in layer 1
+des = 0 #governs menu label selector in layer 2
+custom_status = "OFF" #whether custom mode is on or off
 briper = round((pixels.brightness * 100))
 old_briper = briper
-pixelState = 0
+pixelState = 0 #0= off, 1 = on (RGB)
 main_menu_state = 0
 mode_menu_state = 0
-redditing = False
-led_state = 0
-colour_index = 0
-colourPreset = colour_dex[(wheel[0])]
+redditing = False #whether or not the user is editing in the rhythm child menu
+led_state = 0 #0 = off, 1 = on (analog)
+colour_index = 0 #index of preset colour wheel
+colourPreset = colour_dex[(wheel[0])] #tuple of RGB values picked from colour_dex type:DICT
 #custom<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 font = terminalio.FONT
-red_value, blue_value, green_value = 255, 0, 0
-cms = "main"
-AMP = 3
-custom_status = "OFF"
+red_value, blue_value, green_value = 255, 0, 0 #default custom set colour (red)
+cms = "main" #cms stands for custom menu state
+AMP = 3 #the rate at which the rotary encoder increase/decreases RGB values in CUSTOM feature
+custom_status = "OFF" #determines whether the main led strip displays the custom set colour or a preset colour
 custom_menu_labels = [
     label.Label(font, text="Status <OFF>", x=15, y=10),
     label.Label(font, text="RED   <255>", x=15, y=25),
@@ -115,15 +114,15 @@ custom_menu_labels = [
 cursor = jlabel(font, text=">", x=0, y=10)
 current_index = 0
 #period<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-arra = ["<PS>", "<CT>"]
+arra = ["<PS>", "<CT>"] #array for determining the order which the rhythm blinks. PS = preset, CT = custom
 aradict = {"<PS>": colourPreset, "<CT>": (red_value, green_value, blue_value)}
 arravalues = [None, None]
 
-def update_arravalues():
+def update_arravalues(): #Period function - updates colour array values 
     arravalues[0] = aradict[arra[0]]
     arravalues[1] = aradict[arra[1]]
 
-rhythdict = {
+rhythdict = { #period function - the rhythm translator for setting up the rhythm
     "A":(1),
     "B":(1/2, 1/2),
     "C":(1/2, 1/4, 1/4),
@@ -139,14 +138,19 @@ rhythdict = {
     "M":(1/4, 3/4),
     "N": None
 }
-period = 4.0          # seconds
-next_beat_time = time.monotonic()
-period_index = 0
-timsig = 0
-current_colour = 0
+period = 4.0 # determines the period which the rhythm repeats at
+next_beat_time = time.monotonic() #
+period_index = 0 #governs period menu selection
+timsig = 0 #time signature for period function
+current_colour = 0 #corresponds to last_colour to reduce unnecessary pixel updates
 pms = "main"
-beatlist = []
-k1, k2, k3 ,k4 = ["N","A","B","C","D","E","F","G","H","I","J","K","L","M"],["N","A","B","C","D","E","F","G","H","I","J","K","L","M"],["N","A","B","C","D","E","F","G","H","I","J","K","L","M"],["N","A","B","C","D","E","F","G","H","I","J","K","L","M"]
+beatlist = [] 
+
+#lists for code letters in the rhythm child menu
+k1 = ["N","A","B","C","D","E","F","G","H","I","J","K","L","M"]
+k2 = ["N","A","B","C","D","E","F","G","H","I","J","K","L","M"]
+k3 = ["N","A","B","C","D","E","F","G","H","I","J","K","L","M"]
+k4 = ["N","A","B","C","D","E","F","G","H","I","J","K","L","M"]
 k1v, k2v, k3v, k4v = 1,2,3,0
 period_status = "SAVE/TURN ON"
 period_menu_labels = [
@@ -155,9 +159,9 @@ period_menu_labels = [
     label.Label(font, text=f"PRD <4.0s>", x=15, y=40),
     label.Label(font, text="STS [SAVE/TURN ON]", x=15, y=55),
 ]
-pursor = jlabel(font, text = ">", x = 0 , y= 10)
-purrent_pindex = 0
-rhurrent_rhindex = 0
+pursor = jlabel(font, text = ">", x = 0 , y= 10) #period "cursor" arrow
+purrent_pindex = 0 #period index
+rhurrent_rhindex = 0 #rhythm index
 rhythmenu = [
     f" [{k1[k1v]}]<{k2[k2v]}><{k3[k3v]}><{k4[k4v]}> ",
     f" <{k1[k1v]}>[{k2[k2v]}]<{k3[k3v]}><{k4[k4v]}> ",
@@ -172,13 +176,13 @@ redditing_rhythmenu = [
 ]
 print(arravalues)
 
-def switcheroo(): #complete
+def switcheroo(): #reverses the first colour that displays during the period function
     global colourPreset, red_value, green_value, blue_value
     arra.reverse()
     period_menu_labels[0].text = f"FIR {arra[0]}"
     update_arravalues()
 
-def enter_rhythm_editor(jack):
+def enter_rhythm_editor(jack): #changes the push button to operate within the rhythm directory
     strings = [
             f" [{k1[k1v]}]<{k2[k2v]}><{k3[k3v]}><{k4[k4v]}> ",
             f" <{k1[k1v]}>[{k2[k2v]}]<{k3[k3v]}><{k4[k4v]}> ",
@@ -190,14 +194,14 @@ def enter_rhythm_editor(jack):
     else:
         period_menu_labels[1].text = "RHY " + strings[0]
 
-def update_period_status():
+def update_period_status(): #update STS label
     period_menu_labels[3].text = f"STS <{period_status}>"
 
-def periodcfg():
+def periodcfg(): #updates PRD label within period function
     period_menu_labels[2].text = f"PRD  {period}s "
 
 
-def process_rhythm():
+def process_rhythm(): #processes rhythm for the alternating LED colours
     global beatlist, timsig
 
     beatlist = []
@@ -222,7 +226,7 @@ def process_rhythm():
         else:
             beatlist.append(value)
 
-def output_rhythm():
+def output_rhythm(): #handles the execution of LED blinking after processing all period-related variables
     global period_index
     global next_beat_time
     global pixelState
@@ -248,7 +252,7 @@ def output_rhythm():
 
     duration = abs(beat) * (period/timsig)
 
-    if beat >= 0:
+    if beat >= 0: #checks if there are beats left, if not, set LED to (0,0,0) (but not change its 'on' status)
         set_pixels(arravalues[current_colour])
         current_colour ^= 1
     else:
@@ -260,7 +264,7 @@ def output_rhythm():
     if period_index >= len(beatlist):
         period_index = 0
 
-def start_period():
+def start_period(): #prepare broadcasting-related variables before processing LED rhythm data
     global period_status
     global period_index
     global last_period_time
@@ -276,7 +280,7 @@ def start_period():
     current_colour = 0
     last_period_time = time.monotonic()
 
-def extinguishers_period(really):
+def extinguishers_period(really): #returns to the parent menu of the period feature
     global pms
     if pms != "main":
         if really == "RHY":
@@ -286,12 +290,12 @@ def extinguishers_period(really):
         pms = "main"
         process_rhythm()
 
-def screw(delta):
+def screw(delta): #controls LED blink period from 0.5 to 10 seconds, wrapping from both ends when required
     global period, pms
     if pms == "PRD":
         period = (period - delta * 0.5) % 10.5
 
-def flyer(eric):
+def flyer(eric): #handles primary direction in the rhythm menu, accepts integer
     strings = [
         f"  {k1[k1v]} <{k2[k2v]}><{k3[k3v]}><{k4[k4v]}> ",
         f" <{k1[k1v]}> {k2[k2v]} <{k3[k3v]}><{k4[k4v]}> ",
@@ -300,7 +304,7 @@ def flyer(eric):
     ]
     period_menu_labels[1].text = "RHY " + strings[eric]
         
-def steer(delta):
+def steer(delta): #cycles between rhythm keys that dictate the final rhythm output
     global k1v, k2v, k3v, k4v, rhurrent_rhindex
     if redditing == True:
         if rhurrent_rhindex == 0:
@@ -313,7 +317,7 @@ def steer(delta):
             k4v = (k4v - delta) % 14
         
 
-def lighters(really):
+def lighters(really): #handles entering child menu RGB labels in CUSTOM settings
     global red_value, blue_value, green_value
     if really == "red":
         custom_menu_labels[1].text = f"RED    {red_value}"
@@ -322,7 +326,7 @@ def lighters(really):
     elif really == "blue":
         custom_menu_labels[3].text = f"BLUE   {blue_value}"
 
-def extinguishers(really):
+def extinguishers(really): #handles returning to parent menu in CUSTOM settings
     global red_value, blue_value, green_value, cms
     if cms != "main":
         if really == "red":
@@ -333,7 +337,7 @@ def extinguishers(really):
             custom_menu_labels[3].text = f"BLUE  <{blue_value}>"
         cms = "main"
 
-def nozzle(delta):
+def nozzle(delta): #handles colour values for the custom RGB colour setter
     global red_value, blue_value, green_value
     if cms == "red":
         red_value = (red_value - delta * AMP)
@@ -379,21 +383,21 @@ display = SH1106(
 )
 #display setup-----------------------------------------
 
-#imageload--------------------------------------------- (dumbest way to do this but it works (adding seperate lines for each image), will improve on this later)
-imgms2 = "main_menu-s2.bmp"
+#imageload---------------------------------------------
+imgms2 = "main_menu-s2.bmp" #load image labels
 bitmap, palette = jload(
     imgms2,
     bitmap=displayio.Bitmap,
     palette=displayio.Palette
 )
-tile_main_s2 = displayio.TileGrid(
+tile_main_s2 = displayio.TileGrid( 
     bitmap, 
     pixel_shader=palette, 
     x = (display.width - bitmap.width) // 2, 
     y=(display.height - bitmap.height) // 2
 )
 
-imgs3 = "main_menu-s3.bmp"
+imgs3 = "main_menu-s3.bmp" #load image labels
 bitmap, palette = jload(
     imgs3,
     bitmap=displayio.Bitmap,
@@ -406,7 +410,7 @@ tile_main_s3 = displayio.TileGrid(
     y=(display.height - bitmap.height) // 2
 )
 
-imgs1 = "main_menu-s1.bmp"
+imgs1 = "main_menu-s1.bmp" #load image labels
 bitmap, palette = jload(
     imgs1,
     bitmap=displayio.Bitmap,
@@ -419,7 +423,7 @@ tile_main_s1 = displayio.TileGrid(
     y=(display.height - bitmap.height) // 2
 )
 
-migs1 = "mode-menu_s1.bmp"
+migs1 = "mode-menu_s1.bmp" #load image labels
 bitmap, palette = jload(
     migs1,
     bitmap=displayio.Bitmap,
@@ -432,7 +436,7 @@ tile_mode_s1 = displayio.TileGrid(
     y=(display.height - bitmap.height) // 2
 )
 
-migs2 = "mode-menu_s2.bmp"
+migs2 = "mode-menu_s2.bmp" #load image labels
 bitmap, palette = jload(
     migs2,
     bitmap=displayio.Bitmap,
@@ -445,7 +449,7 @@ tile_mode_s2 = displayio.TileGrid(
     y=(display.height - bitmap.height) // 2
 )
 
-migs3 = "mode-menu_s3.bmp"
+migs3 = "mode-menu_s3.bmp" #load image labels
 bitmap, palette = jload(
     migs3,
     bitmap=displayio.Bitmap,
@@ -460,21 +464,21 @@ tile_mode_s3 = displayio.TileGrid(
 #imageload---------------------------------------------
 
 
-text_area_brightness = jlabel( #filler
+text_area_brightness = jlabel( #loaded text labels
         font,
         text= f"BRIGHTNESS [{briper}%]",
         scale = 1,
         anchor_point=(0.5, 0.5),
         anchored_position=(display.width // 2, display.height // 2)
     )
-text_area_mode_colour = jlabel( #filler
+text_area_mode_colour = jlabel( #loaded text labels
         font,
         text= f"<{wheel[0].upper()}>",
         scale = 1,
         anchor_point=(0.5, 0.5),
         anchored_position=(display.width // 2, display.height // 2)
     )
-text_area_LED = jlabel( #filler
+text_area_LED = jlabel( #loaded text labels
         font,
         text= f"TOGGLE <{lSet[0]}>",
         scale = 1,
@@ -485,40 +489,40 @@ main_menu = [tile_main_s1, tile_main_s2, tile_main_s3]
 mode_menu = [tile_mode_s1, tile_mode_s2, tile_mode_s3]
 
 
-main_menu_group = displayio.Group()
+main_menu_group = displayio.Group() #initializing first labels when loaded
 main_menu_group.append(tile_main_s1)
 
-mode_menu_group = displayio.Group()
+mode_menu_group = displayio.Group() #initializing first labels when loaded
 mode_menu_group.append(tile_mode_s1)
 
-brightness_group = displayio.Group()
+brightness_group = displayio.Group() #initializing first labels when loaded
 brightness_group.append(text_area_brightness)
 
-led_group = displayio.Group()
+led_group = displayio.Group() #....
 led_group.append(text_area_LED)
 
-colour_group = displayio.Group()
+colour_group = displayio.Group() #...
 colour_group.append(text_area_mode_colour)
 
-custom_group = displayio.Group()
+custom_group = displayio.Group() #...
 for lbl in custom_menu_labels:
     custom_group.append(lbl)
 custom_group.append(cursor)
 
-period_group = displayio.Group()
+period_group = displayio.Group() #...
 for lbl in period_menu_labels:
     period_group.append(lbl)
 period_group.append(pursor)
 
-display.root_group = main_menu_group
+display.root_group = main_menu_group #load main menu
 print("Loaded main menu")
 
 
-def debug_print():
+def debug_print(): #blinks the analog LED
     led.value = True
     led.value = False
 
-def pixel_switch(on):
+def pixel_switch(on): #turns on and off main LED, as well as checking if custom status is on to dictate whether to turn on custom or preset colour
     global pixelState, period_status
     if on:
         pixelState = 1
@@ -536,7 +540,7 @@ def pixel_switch(on):
         update_period_status()
         pixelState = 0
 
-def LED_toggle(lever):
+def LED_toggle(lever): 
     global debug
     if debug == False:
         if lever == "off":
@@ -544,7 +548,7 @@ def LED_toggle(lever):
         elif lever == "on":
             led.value = True
 
-def frenzy():
+def frenzy(): #handles RGB LED updates after status or variable changes
     if pixelState != 1:
         set_pixels((0,0,0))
         return
@@ -554,16 +558,16 @@ def frenzy():
         else:
             set_pixels(colourPreset)
 
-def update_custom_status():
+def update_custom_status(): #only updates when there is a menu change or itself to reduce clutter
     custom_menu_labels[0].text = f"Status <{custom_status}>"
 
-def update_briper():
+def update_briper(): #only updates when there is a menu change or itself to reduce clutter
     text_area_brightness.text = f"BRIGHTNESS [{briper}%]"
 
 
 
 
-while "True":
+while True: #actual loop that the program runs on
 ###debug den#########################################################
     """
     current_time = time.time()
@@ -611,9 +615,9 @@ while "True":
             debug_print() 
         print(layer, dir, des)
 
-    if layer == 0:        
+    if layer == 0: #main menu       
         #rotary switch---------------------------------------------
-        if delta:
+        if delta: #cycles selector
             main_menu_state += delta
             main_menu_state %= 3
             try:
@@ -624,7 +628,7 @@ while "True":
             #print(f"Current main menu option selected [{main_menu_state + 1}]")
         #rotary switch---------------------------------------------
 
-        if not current_click and last_click_state:
+        if not current_click and last_click_state: #check for button state change
             if main_menu_state == 0: 
                 display.root_group = brightness_group
                 dir = 1
@@ -645,7 +649,7 @@ while "True":
             layer = 1
             print(f"Directory layer changed to [{layer}]")
 
-    if layer == 1:
+    if layer == 1: #mode menu, brightness, analog LED menu
         if dir == 1:
             if delta:
                 briper -= delta * 2
@@ -759,8 +763,8 @@ while "True":
                 if debug == True:
                     debug_print()
   
-        if des == 3:
-            if delta:
+        if des == 3: #period menu
+            if delta: #selector
                 purrent_pindex += delta
                 purrent_pindex %= 4    
                 pursor.y = 10 + purrent_pindex * 15
@@ -795,13 +799,9 @@ while "True":
                         period_status = "SAVE/TURN ON"
                         frenzy()
                     update_period_status()
-
-
-
                 last_position = encoder.position // 2
-
-
-        if not current_back and last_back_state:
+                
+        if not current_back and last_back_state: #move up a layer in the directory
             display.root_group = mode_menu_group
             layer = 1
             dir = 2
