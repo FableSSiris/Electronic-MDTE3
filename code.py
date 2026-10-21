@@ -42,7 +42,7 @@ colour_dex = { #rgb tuples for preset colours
     "magenta": (255, 0, 255)
     }
 
-wheel = [ #preset strings that displays in COLOUR labels
+wheel = [ #preset strings that display in COLOUR labels
     'white',
     'red',
     'orange',
@@ -55,24 +55,24 @@ wheel = [ #preset strings that displays in COLOUR labels
 
 set_pixels((0,0,0)) 
 
-led = digitalio.DigitalInOut(board.GP10) #analog LED & its properties
+led = digitalio.DigitalInOut(board.GP10) #analog LED & its properties to debug, turn on, turn off
 led.direction = digitalio.Direction.OUTPUT
 
 led.value = False
 
-encoder = rotaryio.IncrementalEncoder(board.GP17, board.GP16, divisor=2) #rotary encoder
+encoder = rotaryio.IncrementalEncoder(board.GP17, board.GP16, divisor=2) #controls indexed values such as menu selection, numerical values or alphabetical values
 
 last_position = 0 #rotary encoder last position to handle turning
 
-button1 = digitalio.DigitalInOut(board.GP14) #main push button
+button1 = digitalio.DigitalInOut(board.GP14) #main pushbutton that is usually used to go fowards one layer in the directory or activate certain settings
 button1.direction = digitalio.Direction.INPUT
 button1.pull = digitalio.Pull.UP
 
-button_back = digitalio.DigitalInOut(board.GP13) #back button
+button_back = digitalio.DigitalInOut(board.GP13) #goes back one layer in the directory
 button_back.direction = digitalio.Direction.INPUT
 button_back.pull = digitalio.Pull.UP
 
-buttonC = digitalio.DigitalInOut(board.GP20) #confirm button
+buttonC = digitalio.DigitalInOut(board.GP20) #confirm button, which turns the light on and off
 buttonC.direction = digitalio.Direction.INPUT
 buttonC.pull = digitalio.Pull.UP
 
@@ -83,18 +83,17 @@ last_C_state = True
 jlabel = label.Label 
 jload = adafruit_imageload.load
 
-#lovibabeles---------------------------------------------
 layer = 0 #governs layers of the menu directory
 lSet = ["OFF", "DEBUG", "ON"] #states of the analog LED
 debug = True #if true, will print out things in the serial monitor
 dir = 0 #governs current selected menu label in layer 1
 des = 0 #governs menu label selector in layer 2
 custom_status = "OFF" #whether custom mode is on or off
-briper = round((pixels.brightness * 100))
-old_briper = briper
+briper = round((pixels.brightness * 100)) #controls brightness percentage of the RGB LED 
+old_briper = briper #checks if the brightness percentage displayed within the BRIGHTNESS label is the same as the brightness percentage variable
 pixelState = 0 #0= off, 1 = on (RGB)
-main_menu_state = 0
-mode_menu_state = 0
+main_menu_state = 0 #index value of the main menu label
+mode_menu_state = 0 #index value of the mode menu label
 redditing = False #whether or not the user is editing in the rhythm child menu
 led_state = 0 #0 = off, 1 = on (analog)
 colour_index = 0 #index of preset colour wheel
@@ -102,9 +101,9 @@ colourPreset = colour_dex[(wheel[0])] #tuple of RGB values picked from colour_de
 #custom<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 font = terminalio.FONT
 red_value, blue_value, green_value = 255, 0, 0 #default custom set colour (red)
-cms = "main" #cms stands for custom menu state
+cms = "main" #checks for custom menu state, including whether a submenu has been entered or 
 AMP = 3 #the rate at which the rotary encoder increase/decreases RGB values in CUSTOM feature
-custom_status = "OFF" #determines whether the main led strip displays the custom set colour or a preset colour
+custom_status = "OFF" #determines whether the main LED strip displays the custom set colour or a preset colour
 custom_menu_labels = [
     label.Label(font, text="Status <OFF>", x=15, y=10),
     label.Label(font, text="RED   <255>", x=15, y=25),
@@ -160,8 +159,8 @@ period_menu_labels = [
     label.Label(font, text="STS [SAVE/TURN ON]", x=15, y=55),
 ]
 pursor = jlabel(font, text = ">", x = 0 , y= 10) #period "cursor" arrow
-purrent_pindex = 0 #period index
-rhurrent_rhindex = 0 #rhythm index
+purrent_pindex = 0 #controls the indexed menus within the period label
+rhurrent_rhindex = 0 #controls the indexed rhythm menu label nestled within the period label
 rhythmenu = [
     f" [{k1[k1v]}]<{k2[k2v]}><{k3[k3v]}><{k4[k4v]}> ",
     f" <{k1[k1v]}>[{k2[k2v]}]<{k3[k3v]}><{k4[k4v]}> ",
@@ -182,15 +181,15 @@ def switcheroo(): #reverses the first colour that displays during the period fun
     period_menu_labels[0].text = f"FIR {arra[0]}"
     update_arravalues()
 
-def enter_rhythm_editor(jack): #changes the push button to operate within the rhythm directory
+def enter_rhythm_editor(index): #changes the push button to operate within the rhythm directory
     strings = [
             f" [{k1[k1v]}]<{k2[k2v]}><{k3[k3v]}><{k4[k4v]}> ",
             f" <{k1[k1v]}>[{k2[k2v]}]<{k3[k3v]}><{k4[k4v]}> ",
             f" <{k1[k1v]}><{k2[k2v]}>[{k3[k3v]}]<{k4[k4v]}> ",
             f" <{k1[k1v]}><{k2[k2v]}><{k3[k3v]}>[{k4[k4v]}] "
         ]
-    if jack:
-        period_menu_labels[1].text = "RHY " + strings[jack]
+    if index:
+        period_menu_labels[1].text = "RHY " + strings[index]
     else:
         period_menu_labels[1].text = "RHY " + strings[0]
 
@@ -585,8 +584,6 @@ while True: #actual loop that the program runs on
 
     delta = current_position - last_position
 
-    
-
     if briper != old_briper:
         old_briper = briper
         update_briper()
@@ -725,7 +722,6 @@ while True: #actual loop that the program runs on
 
                 cursor.y = 10 + current_index * 15
                 #print(encoder.position)
-                    
         
             if not current_click and last_click_state:
                 if cms == "main":
@@ -865,8 +861,3 @@ while True: #actual loop that the program runs on
 
     last_position = current_position
     time.sleep(0.01)
-    #Experimental functions (not part of real product)
-    """
-    #cycle = gay_beam(cycle, main_menu_state, layer)
-    #gilded_beam()
-    """
