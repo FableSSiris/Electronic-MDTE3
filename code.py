@@ -18,14 +18,14 @@ D_INTERVAL = 5.0 #used to check/debug print memory usage (every 5 seconds)
 last_action_time = time.time() #memory usage time helper
 
 # Initialize the pixel strip
-pixels = neopixel.NeoPixel(board.GP18, 8, brightness=0.20, auto_write=False)
+pixels = neopixel.NeoPixel(board.GP18, 8, brightness=0.20, auto_write=False) #auto_write false disables immediate updates to LED data so it doesn't flicker while the main loop gets executed
 last_colour = None #saves last set colour so the program doesn't redundantly set it again if the colour doesn't change
 
-def set_pixels(colour): # sets the colour of the LED
+def set_pixels(colour): #no immediate updates means RGB strip needs to be manually updated via this function, improving animation and reducing recursion
     global last_colour
-    if colour != last_colour:
+    if colour != last_colour: #only update when requested colour changes
         pixels.fill(colour)
-        pixels.show()
+        pixels.show() 
         last_colour = colour
 
 print("Initializing...")
@@ -55,18 +55,20 @@ wheel = [ #preset strings that display in COLOUR labels
 
 set_pixels((0,0,0)) 
 
-led = digitalio.DigitalInOut(board.GP10) #analog LED & its properties to debug, turn on, turn off
+led = digitalio.DigitalInOut(board.GP10) #analog LED & its properties to debug, turn on, turn off, this is wired to GP10 on the Pi Pico board
 led.direction = digitalio.Direction.OUTPUT
 
 led.value = False
 
 encoder = rotaryio.IncrementalEncoder(board.GP17, board.GP16, divisor=2) #controls indexed values such as menu selection, numerical values or alphabetical values
+# Wires are soldered in adjacent pins to maximise signal strength and reduce noise interceptions when the rotary encoder is turned
 
 last_position = 0 #rotary encoder last position to handle turning
 
-button1 = digitalio.DigitalInOut(board.GP14) #main pushbutton that is usually used to go fowards one layer in the directory or activate certain settings
+#PullUP makes the button
+button1 = digitalio.DigitalInOut(board.GP14) #main pushbutton that is usually used to go forward one layer in the directory or activate certain settings
 button1.direction = digitalio.Direction.INPUT
-button1.pull = digitalio.Pull.UP
+button1.pull = digitalio.Pull.UP 
 
 button_back = digitalio.DigitalInOut(board.GP13) #goes back one layer in the directory
 button_back.direction = digitalio.Direction.INPUT
@@ -76,7 +78,7 @@ buttonC = digitalio.DigitalInOut(board.GP20) #confirm button, which turns the li
 buttonC.direction = digitalio.Direction.INPUT
 buttonC.pull = digitalio.Pull.UP
 
-last_click_state = True #check for buttons clicks feedback
+last_click_state = True #check for button clicks feedback, stores previous button states so the main loop can detect new button presses
 last_back_state = True
 last_C_state = True
 
@@ -100,7 +102,7 @@ colour_index = 0 #index of preset colour wheel
 colourPreset = colour_dex[(wheel[0])] #tuple of RGB values picked from colour_dex type:DICT
 #custom<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 font = terminalio.FONT
-red_value, blue_value, green_value = 255, 0, 0 #default custom set colour (red)
+red_value, green_value, blue_value = 255, 0, 0 #default custom set colour (red)
 cms = "main" #checks for custom menu state, including whether a submenu has been entered or 
 AMP = 3 #the rate at which the rotary encoder increase/decreases RGB values in CUSTOM feature
 custom_status = "OFF" #determines whether the main LED strip displays the custom set colour or a preset colour
@@ -115,13 +117,13 @@ current_index = 0
 #period<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 arra = ["<PS>", "<CT>"] #array for determining the order which the rhythm blinks. PS = preset, CT = custom
 aradict = {"<PS>": colourPreset, "<CT>": (red_value, green_value, blue_value)}
-arravalues = [None, None]
+arravalues = [None, None] #reads array label as RGB values data to send to the RGB LED 
 
 def update_arravalues(): #Period function - updates colour array values 
     arravalues[0] = aradict[arra[0]]
     arravalues[1] = aradict[arra[1]]
 
-rhythdict = { #period function - the rhythm translator for setting up the rhythm
+rhythdict = { #period function - the rhythm translator for setting up the rhythm, positive values are notes and negative values are rests
     "A":(1),
     "B":(1/2, 1/2),
     "C":(1/2, 1/4, 1/4),
@@ -142,7 +144,7 @@ next_beat_time = time.monotonic() #
 period_index = 0 #governs period menu selection
 timsig = 0 #time signature for period function
 current_colour = 0 #corresponds to last_colour to reduce unnecessary pixel updates
-pms = "main"
+pms = "main" # index variable that controls navigation through the PERIOD function
 beatlist = [] 
 
 #lists for code letters in the rhythm child menu
@@ -201,6 +203,7 @@ def periodcfg(): #updates PRD label within period function
 
 
 def process_rhythm(): #processes rhythm for the alternating LED colours
+    """Convert the rhythm pattern into beat durations"""
     global beatlist, timsig
 
     beatlist = []
@@ -210,12 +213,12 @@ def process_rhythm(): #processes rhythm for the alternating LED colours
 
     keys = [k1[k1v], k2[k2v], k3[k3v], k4[k4v]]
 
-    timsig = len([key for key in keys if key != "N"])
+    timsig = len([key for key in keys if key != "N"]) #excludes N when calculating time signatures
 
     if timsig == 0: #test for null time signature
         return
 
-    for key in (k1[k1v], k2[k2v], k3[k3v], k4[k4v]): #build rhythm
+    for key in (k1[k1v], k2[k2v], k3[k3v], k4[k4v]): #turn rhythm into duration values, negative values are when LEDs are turned off 
         value = rhythdict[key]
 
         if value == None:
@@ -281,7 +284,7 @@ def start_period(): #prepare broadcasting-related variables before processing LE
 
 def extinguishers_period(really): #returns to the parent menu of the period feature
     global pms
-    if pms != "main":
+    if pms != "main": 
         if really == "RHY":
             period_menu_labels[1].text = f"RHY [<{k1[k1v]}><{k2[k2v]}><{k3[k3v]}><{k4[k4v]}>]"
         if really == "PRD":
@@ -517,7 +520,7 @@ display.root_group = main_menu_group #load main menu
 print("Loaded main menu")
 
 
-def debug_print(): #blinks the analog LED
+def debug_print(): #sets voltage to HIGH and then immediately LOW. This creates a very faint blink as real behaviour
     led.value = True
     led.value = False
 
